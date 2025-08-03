@@ -49,3 +49,5 @@ tmp/
 temp/
 
 go.sum
+mongodb_setup.js
+mongodb_collections.json
