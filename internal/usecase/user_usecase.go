@@ -26,30 +26,25 @@ func NewUserUseCase(userRepo domain.UserRepository, passwordService domain.Passw
 }
 
 func (u *UserUseCase) Register(username, email, password string) (*domain.User, error) {
-	// Validate password
 	if err := u.passwordService.ValidatePassword(password); err != nil {
 		return nil, err
 	}
 
-	// Check if user already exists by email
 	existingUser, _ := u.userRepo.GetByEmail(email)
 	if existingUser != nil {
 		return nil, errors.New("user with this email already exists")
 	}
 
-	// Check if user already exists by username
 	existingUser, _ = u.userRepo.GetByUsername(username)
 	if existingUser != nil {
 		return nil, errors.New("user with this username already exists")
 	}
 
-	// Hash password
 	hashedPassword, err := u.passwordService.HashPassword(password)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create new user
 	user := &domain.User{
 		Username:  username,
 		Email:     email,
@@ -59,7 +54,6 @@ func (u *UserUseCase) Register(username, email, password string) (*domain.User, 
 		UpdatedAt: time.Now(),
 	}
 
-	// Save to database
 	if err := u.userRepo.Create(user); err != nil {
 		return nil, err
 	}
@@ -68,38 +62,25 @@ func (u *UserUseCase) Register(username, email, password string) (*domain.User, 
 }
 
 func (u *UserUseCase) Login(email, password string) (*domain.LoginResponse, error) {
-	// Get user by email
 	user, err := u.userRepo.GetByEmail(email)
 	if err != nil {
 		return nil, errors.New("invalid email or password")
 	}
 
-	// Check password
 	if !u.passwordService.CheckPassword(password, user.Password) {
 		return nil, errors.New("invalid email or password")
 	}
 
-	// TODO:Implement JWT login business logic
-	// Requirements:
-	// - Get user by email using userRepo.GetByEmail(email) - already done above
-	// - Check password using passwordService.CheckPassword(password, user.Password) - already done above
-	// - Generate access token using jwtService.GenerateAccessToken(user.ID, user.Email, user.Role)
-	// - Generate refresh token using jwtService.GenerateRefreshToken(user.ID, user.Email, user.Role)
-	// - Create session with refresh token using sessionRepo.Create()
-	// - Return LoginResponse with user, access_token, and refresh_token
-
-	// Generate access token
 	accessToken, err := u.jwtService.GenerateAccessToken(user.ID, user.Email, user.Role)
 	if err != nil {
 		return nil, err
 	}
-	//GenerateRefreshToken
+	
 	refreshToken, err := u.jwtService.GenerateRefreshToken(user.Id, user.Email, user.Role)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create session with refresh token
 	session := &domain.Session{
 		UserID: user.ID,
 		Username: user.Username,
@@ -112,7 +93,7 @@ func (u *UserUseCase) Login(email, password string) (*domain.LoginResponse, erro
 	if err := u.sessionRepo.Create(session); err != nil{
 		return nil, err
 	}
-	// Login LoginResponse
+
 	return &domain.LoginResponse{
 		User: user,
 		AccessToken: accessToken,
@@ -170,24 +151,43 @@ func (u *UserUseCase) CheckPassword(password, hash string) bool {
 }
 
 func (u *UserUseCase) RefreshToken(refreshToken string) (*domain.LoginResponse, error) {
-	// RefreshToken refreshes an access token using a refresh token
-	// TODO: Implement token refresh business logic
-	// Requirements:
-	// - Validate refresh token using jwtService.ValidateToken(refreshToken)
-	// - Get session by userID using sessionRepo.GetByUserID(claims.UserID)
-	// - Check if session is active and not expired
-	// - Get user by ID using userRepo.GetByID(claims.UserID)
-	// - Generate new access token using jwtService.GenerateAccessToken()
-	// - Update session activity using sessionRepo.UpdateLastActivity()
-	// - Return LoginResponse with user, new access_token, and same refresh_token
-	claims, err := 
-	return nil, nil
+	claims, err := u.jwtService.ValidateToken(refreshToken)
+	if err != nil {
+		return nil, errors.New("invalid refresh token")
+	}
+
+	session, err := u.sessionRepo.GetByUserID(claims.UserID)
+	if err != nil {
+		return nil, errors.New("session not found")
+	}
+
+	if !session.IsActive || time.Now().After(session.ExpiresAt) {
+		return nil, errors.New("session expired")
+	}
+
+	// Get user
+	user, err := u.userRepo.GetByID(claims.UserID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+	
+	newAccessToken, err := u.jwtService.GenerateAccessToken(user.ID, user.Email, user.Role)
+	if err != nil {
+		return nil, err
+	}
+
+	err = u.sessionRepo.UpdateLastActivity(session.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &domain.LoginResponse{
+		User:         user,
+		AccessToken:  newAccessToken,
+		RefreshToken: refreshToken,
+	}, nil
 }
 
 func (u *UserUseCase) Logout(userID primitive.ObjectID) error {
-	// TODO: Implement logout business logic
-	// Requirements:
-	// - Delete session from database using sessionRepo.DeleteByUserID(userID)
-	// - Return error if any
-	return nil
-}
+	return u.sessionRepo.DeleteByUserID(userID)
+} 
