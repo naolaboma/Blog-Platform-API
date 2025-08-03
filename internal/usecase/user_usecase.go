@@ -87,7 +87,37 @@ func (u *UserUseCase) Login(email, password string) (*domain.LoginResponse, erro
 	// - Generate refresh token using jwtService.GenerateRefreshToken(user.ID, user.Email, user.Role)
 	// - Create session with refresh token using sessionRepo.Create()
 	// - Return LoginResponse with user, access_token, and refresh_token
-	return nil, nil
+
+	// Generate access token
+	accessToken, err := u.jwtService.GenerateAccessToken(user.ID, user.Email, user.Role)
+	if err != nil {
+		return nil, err
+	}
+	//GenerateRefreshToken
+	refreshToken, err := u.jwtService.GenerateRefreshToken(user.Id, user.Email, user.Role)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create session with refresh token
+	session := &domain.Session{
+		UserID: user.ID,
+		Username: user.Username,
+		Token: refreshToken,
+		IsActive: true,
+		CreatedAt: time.Now(),
+		ExpiresAt: time.Now().Add(time.Hour * 24 * 7), // exp in 7 days
+		LastActivity: time.Now(),
+	}
+	if err := u.sessionRepo.Create(session); err != nil{
+		return nil, err
+	}
+	// Login LoginResponse
+	return &domain.LoginResponse{
+		User: user,
+		AccessToken: accessToken,
+		RefreshToken: refreshToken,
+	}, nil
 }
 
 func (u *UserUseCase) GetByID(id primitive.ObjectID) (*domain.User, error) {
@@ -150,6 +180,7 @@ func (u *UserUseCase) RefreshToken(refreshToken string) (*domain.LoginResponse, 
 	// - Generate new access token using jwtService.GenerateAccessToken()
 	// - Update session activity using sessionRepo.UpdateLastActivity()
 	// - Return LoginResponse with user, new access_token, and same refresh_token
+	claims, err := 
 	return nil, nil
 }
 
