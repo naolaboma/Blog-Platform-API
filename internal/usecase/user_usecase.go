@@ -1,10 +1,9 @@
 package usecase
 
 import (
+	"Blog-API/internal/domain"
 	"errors"
 	"time"
-
-	"Blog-API/internal/domain"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -79,15 +78,36 @@ func (u *UserUseCase) Login(email, password string) (*domain.LoginResponse, erro
 		return nil, errors.New("invalid email or password")
 	}
 
-	// TODO:Implement JWT login business logic
-	// Requirements:
-	// - Get user by email using userRepo.GetByEmail(email) - already done above
-	// - Check password using passwordService.CheckPassword(password, user.Password) - already done above
-	// - Generate access token using jwtService.GenerateAccessToken(user.ID, user.Email, user.Role)
-	// - Generate refresh token using jwtService.GenerateRefreshToken(user.ID, user.Email, user.Role)
-	// - Create session with refresh token using sessionRepo.Create()
-	// - Return LoginResponse with user, access_token, and refresh_token
-	return nil, nil
+	// Generate access token
+	accessToken, err := u.jwtService.GenerateAccessToken(user.ID, user.Email, user.Role)
+	if err != nil {
+		return nil, err
+	}
+	//GenerateRefreshToken
+	refreshToken, err := u.jwtService.GenerateRefreshToken(user.ID, user.Email, user.Role)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create session with refresh token
+	session := &domain.Session{
+		UserID:       user.ID,
+		Username:     user.Username,
+		Token:        refreshToken,
+		IsActive:     true,
+		CreatedAt:    time.Now(),
+		ExpiresAt:    time.Now().Add(time.Hour * 24 * 7), // exp in 7 days
+		LastActivity: time.Now(),
+	}
+	if err := u.sessionRepo.Create(session); err != nil {
+		return nil, err
+	}
+	//LoginResponse
+	return &domain.LoginResponse{
+		User:         user,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
 }
 
 func (u *UserUseCase) GetByID(id primitive.ObjectID) (*domain.User, error) {
@@ -141,22 +161,43 @@ func (u *UserUseCase) CheckPassword(password, hash string) bool {
 
 func (u *UserUseCase) RefreshToken(refreshToken string) (*domain.LoginResponse, error) {
 	// RefreshToken refreshes an access token using a refresh token
-	// TODO: Implement token refresh business logic
-	// Requirements:
-	// - Validate refresh token using jwtService.ValidateToken(refreshToken)
-	// - Get session by userID using sessionRepo.GetByUserID(claims.UserID)
-	// - Check if session is active and not expired
-	// - Get user by ID using userRepo.GetByID(claims.UserID)
-	// - Generate new access token using jwtService.GenerateAccessToken()
-	// - Update session activity using sessionRepo.UpdateLastActivity()
-	// - Return LoginResponse with user, new access_token, and same refresh_token
-	return nil, nil
+
+	claims, err := u.jwtService.ValidateToken(refreshToken)
+	if err != nil {
+		return nil, errors.New("invalid refresh token")
+	}
+	// Get the corresponding session from the database
+
+	session, err := u.sessionRepo.GetByUserID(claims.UserID)
+	if err != nil {
+		return nil, errors.New("session not found")
+	}
+	// check if the session is still active and hasnot expired
+	if !session.IsActive || time.Now().After(session.ExpiresAt) {
+		return nil, errors.New("session is expired or inactive")
+	}
+	// Get the full user details
+	user, err := u.userRepo.GetByID(claims.UserID)
+	if err != nil {
+		return nil, errors.New(("user not found"))
+	}
+	// generate new accessToken
+	newAccessToken, err := u.jwtService.GenerateAccessToken(user.ID, user.Email, user.Role)
+	if err != nil {
+		return nil, err
+	}
+	// update last active time on the session
+	if err := u.sessionRepo.UpdateLastActivity(session.ID); err != nil {
+	}
+
+	// Return the response with the new access token and the original refresh token
+	return &domain.LoginResponse{
+		User:         user,
+		AccessToken:  newAccessToken,
+		RefreshToken: refreshToken,
+	}, nil
 }
 
 func (u *UserUseCase) Logout(userID primitive.ObjectID) error {
-	// TODO: Implement logout business logic
-	// Requirements:
-	// - Delete session from database using sessionRepo.DeleteByUserID(userID)
-	// - Return error if any
-	return nil
+	return u.sessionRepo.DeleteByUserID(userID)
 }

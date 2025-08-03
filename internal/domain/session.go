@@ -33,9 +33,9 @@ type SessionRepository interface {
 
 // interface for session business logic
 type SessionUseCase interface {
-	CreateSession(userID primitive.ObjectID, username string) (*Session, error)
+	CreateSession(userID primitive.ObjectID, username string, refreshToken string) (*Session, error)
 	GetSessionByUserID(userID primitive.ObjectID) (*Session, error)
 	DeleteSession(userID primitive.ObjectID) error
 	CleanupExpiredSessions() error
 	UpdateSessionActivity(userID primitive.ObjectID) error
-} 
+}
