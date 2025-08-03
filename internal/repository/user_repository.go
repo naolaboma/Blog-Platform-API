@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"blog-api-mongodb/internal/domain"
-	"blog-api-mongodb/internal/infrastructure/database"
+	"Blog-API/internal/domain"
+	"Blog-API/internal/infrastructure/database"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"

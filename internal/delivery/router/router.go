@@ -1,8 +1,8 @@
 package router
 
 import (
-	"blog-api-mongodb/internal/delivery/controllers"
-	"blog-api-mongodb/internal/infrastructure/middleware"
+	"Blog-API/internal/delivery/controllers"
+	"Blog-API/internal/infrastructure/middleware"
 
 	"github.com/gin-gonic/gin"
 )

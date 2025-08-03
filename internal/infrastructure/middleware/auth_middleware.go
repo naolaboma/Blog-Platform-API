@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"blog-api-mongodb/internal/domain"
+	"Blog-API/internal/domain"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )

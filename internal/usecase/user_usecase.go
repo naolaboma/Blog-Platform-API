@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"blog-api-mongodb/internal/domain"
+	"Blog-API/internal/domain"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )

@@ -3,8 +3,8 @@ package controllers
 import (
 	"net/http"
 
-	"blog-api-mongodb/internal/domain"
-	"blog-api-mongodb/internal/infrastructure/middleware"
+	"Blog-API/internal/domain"
+	"Blog-API/internal/infrastructure/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )

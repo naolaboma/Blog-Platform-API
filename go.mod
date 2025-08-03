@@ -1,4 +1,4 @@
-module blog-api-mongodb
+module Blog-API
 
 go 1.21
 

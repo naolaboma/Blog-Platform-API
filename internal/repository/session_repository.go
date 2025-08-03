@@ -3,8 +3,8 @@ package repository
 import (
 	"errors"
 
-	"blog-api-mongodb/internal/domain"
-	"blog-api-mongodb/internal/infrastructure/database"
+	"Blog-API/internal/domain"
+	"Blog-API/internal/infrastructure/database"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
