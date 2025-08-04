@@ -18,21 +18,18 @@ func NewSessionUseCase(sessionRepo domain.SessionRepository) domain.SessionUseCa
 }
 
 func (s *SessionUseCase) CreateSession(userID primitive.ObjectID, username string, refreshToken string) (*domain.Session, error) {
-
 	session := &domain.Session{
-		UserID: userID,
-		Username: username,
-		Token: refreshToken, // store the refreshToken
-		IsActive: true,
-		CreatedAt: time.Now(),
-		ExpiresAt: time.Now().Add(7 * 24 * time.Hour), // exp for 7 days
+		UserID:       userID,
+		Username:     username,
+		Token:        refreshToken, // store the refreshToken
+		IsActive:     true,
+		CreatedAt:    time.Now(),
+		ExpiresAt:    time.Now().Add(7 * 24 * time.Hour), // exp for 7 days
 		LastActivity: time.Now(),
 	}
-	
-	if err := s.sessionRepo.Create(session); err != nil{
+	if err := s.sessionRepo.Create(session); err != nil {
 		return nil, err
 	}
-	
 	return session, nil
 }
 
@@ -53,6 +50,5 @@ func (s *SessionUseCase) UpdateSessionActivity(userID primitive.ObjectID) error 
 	if err != nil {
 		return err
 	}
-
 	return s.sessionRepo.UpdateLastActivity(session.ID)
-} 
+}

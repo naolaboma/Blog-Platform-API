@@ -1,10 +1,9 @@
 package usecase
 
 import (
+	"Blog-API/internal/domain"
 	"errors"
 	"time"
-
-	"Blog-API/internal/domain"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -71,32 +70,36 @@ func (u *UserUseCase) Login(email, password string) (*domain.LoginResponse, erro
 		return nil, errors.New("invalid email or password")
 	}
 
+	// Generate access token
 	accessToken, err := u.jwtService.GenerateAccessToken(user.ID, user.Email, user.Role)
 	if err != nil {
 		return nil, err
 	}
 	
-	refreshToken, err := u.jwtService.GenerateRefreshToken(user.Id, user.Email, user.Role)
+	// Generate refresh token
+	refreshToken, err := u.jwtService.GenerateRefreshToken(user.ID, user.Email, user.Role)
 	if err != nil {
 		return nil, err
 	}
 
+	// Create session with refresh token
 	session := &domain.Session{
-		UserID: user.ID,
-		Username: user.Username,
-		Token: refreshToken,
-		IsActive: true,
-		CreatedAt: time.Now(),
-		ExpiresAt: time.Now().Add(time.Hour * 24 * 7), // exp in 7 days
+		UserID:       user.ID,
+		Username:     user.Username,
+		Token:        refreshToken,
+		IsActive:     true,
+		CreatedAt:    time.Now(),
+		ExpiresAt:    time.Now().Add(time.Hour * 24 * 7), // exp in 7 days
 		LastActivity: time.Now(),
 	}
-	if err := u.sessionRepo.Create(session); err != nil{
+	if err := u.sessionRepo.Create(session); err != nil {
 		return nil, err
 	}
-
+	
+	// Return login response
 	return &domain.LoginResponse{
-		User: user,
-		AccessToken: accessToken,
+		User:         user,
+		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
 }
@@ -151,36 +154,41 @@ func (u *UserUseCase) CheckPassword(password, hash string) bool {
 }
 
 func (u *UserUseCase) RefreshToken(refreshToken string) (*domain.LoginResponse, error) {
+	// RefreshToken refreshes an access token using a refresh token
 	claims, err := u.jwtService.ValidateToken(refreshToken)
 	if err != nil {
 		return nil, errors.New("invalid refresh token")
 	}
 
+	// Get the corresponding session from the database
 	session, err := u.sessionRepo.GetByUserID(claims.UserID)
 	if err != nil {
 		return nil, errors.New("session not found")
 	}
-
+	
+	// Check if the session is still active and has not expired
 	if !session.IsActive || time.Now().After(session.ExpiresAt) {
-		return nil, errors.New("session expired")
+		return nil, errors.New("session is expired or inactive")
 	}
-
-	// Get user
+	
+	// Get the full user details
 	user, err := u.userRepo.GetByID(claims.UserID)
 	if err != nil {
 		return nil, errors.New("user not found")
 	}
 	
+	// Generate new access token
 	newAccessToken, err := u.jwtService.GenerateAccessToken(user.ID, user.Email, user.Role)
 	if err != nil {
 		return nil, err
 	}
-
+	// Update last active time on the session
 	err = u.sessionRepo.UpdateLastActivity(session.ID)
 	if err != nil {
 		return nil, err
 	}
 
+	// Return the response with the new access token and the original refresh token
 	return &domain.LoginResponse{
 		User:         user,
 		AccessToken:  newAccessToken,
@@ -190,4 +198,4 @@ func (u *UserUseCase) RefreshToken(refreshToken string) (*domain.LoginResponse, 
 
 func (u *UserUseCase) Logout(userID primitive.ObjectID) error {
 	return u.sessionRepo.DeleteByUserID(userID)
-} 
+}

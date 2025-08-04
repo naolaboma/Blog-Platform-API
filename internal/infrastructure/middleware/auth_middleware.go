@@ -10,12 +10,14 @@ import (
 )
 
 type AuthMiddleware struct {
-	jwtService domain.JWTService
+	jwtService    domain.JWTService
+	sessionRepo   domain.SessionRepository
 }
 
-func NewAuthMiddleware(jwtService domain.JWTService) *AuthMiddleware {
+func NewAuthMiddleware(jwtService domain.JWTService, sessionRepo domain.SessionRepository) *AuthMiddleware {
 	return &AuthMiddleware{
-		jwtService: jwtService,
+		jwtService:  jwtService,
+		sessionRepo: sessionRepo,
 	}
 }
 
@@ -32,6 +34,20 @@ func (a *AuthMiddleware) AuthRequired() gin.HandlerFunc {
 		claims, err := a.jwtService.ValidateToken(token)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, domain.ErrorResponse{Error: "Invalid or expired token"})
+			c.Abort()
+			return
+		}
+
+		// Additional security: Check if session exists and is active
+		session, err := a.sessionRepo.GetByUserID(claims.UserID)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, domain.ErrorResponse{Error: "Session not found"})
+			c.Abort()
+			return
+		}
+		
+		if !session.IsActive {
+			c.JSON(http.StatusUnauthorized, domain.ErrorResponse{Error: "Session inactive"})
 			c.Abort()
 			return
 		}
