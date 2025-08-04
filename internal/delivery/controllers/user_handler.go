@@ -5,6 +5,7 @@ import (
 
 	"Blog-API/internal/domain"
 	"Blog-API/internal/infrastructure/middleware"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )
@@ -42,11 +43,11 @@ func (h *UserHandler) Register(c *gin.Context) {
 		status := http.StatusInternalServerError
 		if err.Error() == "user with this email already exists" || err.Error() == "user with this username already exists" {
 			status = http.StatusConflict
-		} else if err.Error() == "password must be at least 6 characters long" || 
-				  err.Error() == "password must contain at least one uppercase letter" ||
-				  err.Error() == "password must contain at least one lowercase letter" ||
-				  err.Error() == "password must contain at least one number" ||
-				  err.Error() == "password must contain at least one special character" {
+		} else if err.Error() == "password must be at least 6 characters long" ||
+			err.Error() == "password must contain at least one uppercase letter" ||
+			err.Error() == "password must contain at least one lowercase letter" ||
+			err.Error() == "password must contain at least one number" ||
+			err.Error() == "password must contain at least one special character" {
 			status = http.StatusBadRequest
 		}
 		c.JSON(status, domain.ErrorResponse{Error: err.Error()})
@@ -143,18 +144,21 @@ func (h *UserHandler) Logout(c *gin.Context) {
 		Message: "Successfully logged out",
 	})
 }
-
 func (h *UserHandler) UpdateProfile(c *gin.Context) {
-	// Get user ID from context (set by auth middleware)
 	userID, exists := middleware.GetUserIDFromContext(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, domain.ErrorResponse{Error: "User not authenticated"})
 		return
 	}
-
-	// this is just a placeholder
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Profile update endpoint - Full implementation in Day 3",
-		"user_id": userID,
-	})
-} 
+	var req domain.UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Invalid request body: " + err.Error()})
+		return
+	}
+	updatedUser, err := h.userUseCase.UpdateProfile(userID, req.Bio, req.ProfilePic, req.ContactInfo)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, updatedUser)
+}
