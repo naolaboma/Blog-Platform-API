@@ -6,99 +6,107 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// --- Core Models ---
-
 type Blog struct {
 	ID             primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	Title          string             `bson:"title" json:"title"`
-	Content        string             `bson:"content" json:"content"`
+	Title          string             `bson:"title" json:"title" validate:"required,min=1,max=200"`
+	Content        string             `bson:"content" json:"content" validate:"required,min=1"`
 	AuthorID       primitive.ObjectID `bson:"author_id" json:"author_id"`
 	AuthorUsername string             `bson:"author_username" json:"author_username"`
-	Tags           []string           `bson:"tags" json:"tags"`
-	ViewCount      int64              `bson:"view_count" json:"view_count"`
-	LikeCount      int64              `bson:"like_count" json:"like_count"`
-	CommentCount   int64              `bson:"comment_count" json:"comment_count"`
-	Comments       []EmbeddedComment  `bson:"comments" json:"comments"`
-	CreatedAt      time.Time          `bson:"created_at" json:"created_at"`
-	UpdatedAt      time.Time          `bson:"updated_at" json:"updated_at"`
+	Tags           []string           `bson:"tags,omitempty" json:"tags,omitempty"`
+	ViewCount    int                `bson:"view_count" json:"view_count"`
+	LikeCount    int                `bson:"like_count" json:"like_count"`
+	CommentCount int                `bson:"comment_count" json:"comment_count"`
+	Likes        []string           `bson:"likes,omitempty" json:"likes,omitempty"`       
+	Dislikes     []string           `bson:"dislikes,omitempty" json:"dislikes,omitempty"` 
+	Comments  []Comment  `bson:"comments,omitempty" json:"comments,omitempty"`
+	CreatedAt time.Time  `bson:"created_at" json:"created_at"`
+	UpdatedAt time.Time  `bson:"updated_at" json:"updated_at"`
 }
 
-// EmbeddedComment represents a comment stored directly within a Blog document.
-type EmbeddedComment struct {
+type Comment struct {
 	ID             primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	AuthorID       primitive.ObjectID `bson:"author_id" json:"author_id"`
 	AuthorUsername string             `bson:"author_username" json:"author_username"`
-	Content        string             `bson:"content" json:"content"`
+	Content        string             `bson:"content" json:"content" validate:"required,min=1"`
 	CreatedAt      time.Time          `bson:"created_at" json:"created_at"`
 	UpdatedAt      time.Time          `bson:"updated_at" json:"updated_at"`
 }
 
-// Reaction represents a like or dislike in the 'reactions' collection.
 type Reaction struct {
 	ID           primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
 	BlogID       primitive.ObjectID `bson:"blog_id" json:"blog_id"`
 	UserID       primitive.ObjectID `bson:"user_id" json:"user_id"`
-	ReactionType string             `bson:"reaction_type" json:"reaction_type"` // e.g., "like" or "dislike"
+	ReactionType string             `bson:"reaction_type" json:"reaction_type"`
 	CreatedAt    time.Time          `bson:"created_at" json:"created_at"`
 	UpdatedAt    time.Time          `bson:"updated_at" json:"updated_at"`
 }
 
-// Tag represents a single tag in the 'tags' collection.
-type Tag struct {
-	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	Name      string             `bson:"name" json:"name"`
-	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
-}
-
-// Constants for reaction types to avoid magic strings in the code.
 const (
 	ReactionLike    = "like"
 	ReactionDislike = "dislike"
 )
 
-// --- Repository Interfaces (Data Layer Contracts) ---
+type Tag struct {
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Name      string             `bson:"name" json:"name" validate:"required,min=1,max=50"`
+	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
+}
+
 
 type BlogRepository interface {
 	Create(blog *Blog) error
 	GetByID(id primitive.ObjectID) (*Blog, error)
+	GetAll(page, limit int, sort string) ([]*Blog, int64, error)
 	Update(blog *Blog) error
 	Delete(id primitive.ObjectID) error
-	List(params ListBlogParams) ([]*Blog, *PaginationMeta, error)
-	AddComment(blogID primitive.ObjectID, comment EmbeddedComment) error
-	UpdateComment(blogID, commentID primitive.ObjectID, newContent string) error
+	SearchByTitle(title string, page, limit int) ([]*Blog, int64, error)
+	SearchByAuthor(author string, page, limit int) ([]*Blog, int64, error)
+	FilterByTags(tags []string, page, limit int) ([]*Blog, int64, error)
+	FilterByDate(startDate, endDate time.Time, page, limit int) ([]*Blog, int64, error)
+	GetPopular(limit int) ([]*Blog, error)
+	IncrementViewCount(id primitive.ObjectID) error
+	AddComment(blogID primitive.ObjectID, comment *Comment) error
 	DeleteComment(blogID, commentID primitive.ObjectID) error
-	UpdateCounts(blogID primitive.ObjectID, likeDelta, commentDelta int) error
-	IncrementViewCount(blogID primitive.ObjectID) error
+	UpdateComment(blogID, commentID primitive.ObjectID, content string) error
+	AddLike(blogID primitive.ObjectID, userID string) error
+	RemoveLike(blogID primitive.ObjectID, userID string) error
+	AddDislike(blogID primitive.ObjectID, userID string) error
+	RemoveDislike(blogID primitive.ObjectID, userID string) error
+	GetTagIDByName(name string) (primitive.ObjectID, error)
 }
-
-type ReactionRepository interface {
-	Create(reaction *Reaction) error
-	GetByBlogAndUser(blogID, userID primitive.ObjectID) (*Reaction, error)
-	Update(reaction *Reaction) error
-	Delete(id primitive.ObjectID) error
-}
-
-type TagRepository interface {
-	Create(tag *Tag) error
-	GetByName(name string) (*Tag, error)
-	List() ([]*Tag, error)
-}
-
-// --- UseCase Interfaces (Business Logic Contracts) ---
 
 type BlogUseCase interface {
-	CreateBlog(authorID primitive.ObjectID, req CreateBlogRequest) (*Blog, error)
-	GetBlogByID(id primitive.ObjectID, viewerID *primitive.ObjectID) (*Blog, error)
-	UpdateBlog(userID, blogID primitive.ObjectID, req UpdateBlogRequest) (*Blog, error)
-	DeleteBlog(userID, blogID primitive.ObjectID) error
-	ListBlogs(params ListBlogParams) ([]*Blog, *PaginationMeta, error)
-	AddComment(authorID, blogID primitive.ObjectID, req CreateCommentRequest) (*EmbeddedComment, error)
-	UpdateComment(userID, blogID, commentID primitive.ObjectID, req UpdateCommentRequest) error
-	DeleteComment(userID, blogID, commentID primitive.ObjectID) error
-	ReactToBlog(userID, blogID primitive.ObjectID, reactionType string) error
+	CreateBlog(blog *Blog, authorID primitive.ObjectID) error
+	GetBlog(id primitive.ObjectID) (*Blog, error)
+	GetAllBlogs(page, limit int, sort string) ([]*Blog, int64, error)
+	UpdateBlog(id primitive.ObjectID, blog *Blog, userID primitive.ObjectID, userRole string) error
+	DeleteBlog(id primitive.ObjectID, userID primitive.ObjectID, userRole string) error
+	SearchBlogsByTitle(title string, page, limit int) ([]*Blog, int64, error)
+	SearchBlogsByAuthor(author string, page, limit int) ([]*Blog, int64, error)
+	FilterBlogsByTags(tags []string, page, limit int) ([]*Blog, int64, error)
+	FilterBlogsByDate(startDate, endDate time.Time, page, limit int) ([]*Blog, int64, error)
+	GetPopularBlogs(limit int) ([]*Blog, error)
+	AddComment(blogID primitive.ObjectID, comment *Comment) error
+	DeleteComment(blogID, commentID primitive.ObjectID, userID primitive.ObjectID) error
+	UpdateComment(blogID, commentID primitive.ObjectID, content string, userID primitive.ObjectID) error
+	LikeBlog(blogID primitive.ObjectID, userID string) error
+	DislikeBlog(blogID primitive.ObjectID, userID string) error
 }
 
-// --- Data Transfer Objects (DTOs) & Helpers ---
+// We will think about this later
+
+// type ReactionRepository interface {
+// 	Create(reaction *Reaction) error
+// 	GetByBlogAndUser(blogID, userID primitive.ObjectID) (*Reaction, error)
+// 	Update(reaction *Reaction) error
+// 	Delete(id primitive.ObjectID) error
+// }
+
+// type TagRepository interface {
+// 	Create(tag *Tag) error
+// 	GetByName(name string) (*Tag, error)
+// 	List() ([]*Tag, error)
+// }
 
 type CreateBlogRequest struct {
 	Title   string   `json:"title" validate:"required,min=5,max=255"`
@@ -124,18 +132,20 @@ type ReactToBlogRequest struct {
 	ReactionType string `json:"reaction_type" validate:"required,oneof=like dislike"`
 }
 
-type ListBlogParams struct {
-	Page       int
-	Limit      int
-	SortBy     string   // e.g., "newest", "popularity"
-	Tags       []string // Filter by tags
-	Author     string   // Filter by author username
-	SearchTerm string   // For text search on title/content
-}
+// We will think about this in the next tasks
+// type ListBlogParams struct {
+// 	Page       int
+// 	Limit      int
+// 	SortBy     string   // e.g., "newest", "popularity"
+// 	Tags       []string // Filter by tags
+// 	Author     string   // Filter by author username
+// 	SearchTerm string   // For text search on title/content
+// }
 
-type PaginationMeta struct {
-	TotalItems  int64 `json:"total_items"`
-	TotalPages  int   `json:"total_pages"`
-	CurrentPage int   `json:"current_page"`
-	PageSize    int   `json:"page_size"`
-}
+type PaginationResponse struct {
+	Data       interface{} `json:"data"`
+	Page       int         `json:"page"`
+	Limit      int         `json:"limit"`
+	Total      int64       `json:"total"`
+	TotalPages int         `json:"total_pages"`
+} 
