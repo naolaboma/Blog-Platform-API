@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"Blog-API/internal/domain"
@@ -37,7 +38,9 @@ func NewSessionRepository(db *database.MongoDB) domain.SessionRepository {
 	_, err := collection.Indexes().CreateMany(context.Background(), indexModels)
 	if err != nil {
 		// Log error but don't fail - indexes might already exist
-		// log.Printf("Warning: Failed to create session indexes: %v", err)
+		fmt.Printf("DEBUG: Failed to create session indexes: %v\n", err)
+	} else {
+		fmt.Printf("DEBUG: Session indexes created successfully\n")
 	}
 	
 	return &SessionRepository{
@@ -54,13 +57,16 @@ func (r *SessionRepository) Create(session *domain.Session) error {
 	session.CreatedAt = now
 	session.LastActivity = now
 
+	fmt.Printf("DEBUG: Inserting session into database: %+v\n", session)
 	result, err := r.collection.InsertOne(ctx, session)
 	if err != nil {
+		fmt.Printf("DEBUG: Session insertion failed: %v\n", err)
 		// check if user already has a session
 		var mongoErr mongo.WriteException
 		if errors.As(err, &mongoErr) {
 			for _, writeErr := range mongoErr.WriteErrors {
 				if writeErr.Code == 11000 { // duplicate key error
+					fmt.Printf("DEBUG: Duplicate key error, updating session\n")
 					return r.Update(session)
 				}
 			}
@@ -68,6 +74,7 @@ func (r *SessionRepository) Create(session *domain.Session) error {
 		return err
 	}
 
+	fmt.Printf("DEBUG: Session inserted successfully with ID: %v\n", result.InsertedID)
 	if oid, ok := result.InsertedID.(primitive.ObjectID); ok {
 		session.ID = oid
 	}
@@ -103,7 +110,6 @@ func (r *SessionRepository) GetByUserID(userID primitive.ObjectID) (*domain.Sess
 		}
 		return nil, err
 	}
-
 	return &session, nil
 }
 

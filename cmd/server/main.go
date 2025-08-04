@@ -38,7 +38,7 @@ func main() {
 
 	userHandler := controllers.NewUserHandler(userUseCase)
 
-	authMiddleware := middleware.NewAuthMiddleware(jwtService)
+	authMiddleware := middleware.NewAuthMiddleware(jwtService, sessionRepo)
 
 	router := router.SetupRouter(userHandler, authMiddleware)
 

@@ -70,26 +70,18 @@ func (u *UserUseCase) Login(email, password string) (*domain.LoginResponse, erro
 		return nil, errors.New("invalid email or password")
 	}
 
-<<<<<<< update/interface/sesionusecase-naol
 	// Generate access token
-=======
->>>>>>> main
 	accessToken, err := u.jwtService.GenerateAccessToken(user.ID, user.Email, user.Role)
 	if err != nil {
 		return nil, err
 	}
-<<<<<<< update/interface/sesionusecase-naol
-	//GenerateRefreshToken
-	refreshToken, err := u.jwtService.GenerateRefreshToken(user.ID, user.Email, user.Role)
-=======
 	
-	refreshToken, err := u.jwtService.GenerateRefreshToken(user.Id, user.Email, user.Role)
->>>>>>> main
+	// Generate refresh token
+	refreshToken, err := u.jwtService.GenerateRefreshToken(user.ID, user.Email, user.Role)
 	if err != nil {
 		return nil, err
 	}
 
-<<<<<<< update/interface/sesionusecase-naol
 	// Create session with refresh token
 	session := &domain.Session{
 		UserID:       user.ID,
@@ -103,28 +95,11 @@ func (u *UserUseCase) Login(email, password string) (*domain.LoginResponse, erro
 	if err := u.sessionRepo.Create(session); err != nil {
 		return nil, err
 	}
-	//LoginResponse
+	
+	// Return login response
 	return &domain.LoginResponse{
 		User:         user,
 		AccessToken:  accessToken,
-=======
-	session := &domain.Session{
-		UserID: user.ID,
-		Username: user.Username,
-		Token: refreshToken,
-		IsActive: true,
-		CreatedAt: time.Now(),
-		ExpiresAt: time.Now().Add(time.Hour * 24 * 7), // exp in 7 days
-		LastActivity: time.Now(),
-	}
-	if err := u.sessionRepo.Create(session); err != nil{
-		return nil, err
-	}
-
-	return &domain.LoginResponse{
-		User: user,
-		AccessToken: accessToken,
->>>>>>> main
 		RefreshToken: refreshToken,
 	}, nil
 }
@@ -179,66 +154,41 @@ func (u *UserUseCase) CheckPassword(password, hash string) bool {
 }
 
 func (u *UserUseCase) RefreshToken(refreshToken string) (*domain.LoginResponse, error) {
-<<<<<<< update/interface/sesionusecase-naol
 	// RefreshToken refreshes an access token using a refresh token
-
-=======
->>>>>>> main
 	claims, err := u.jwtService.ValidateToken(refreshToken)
 	if err != nil {
 		return nil, errors.New("invalid refresh token")
 	}
-<<<<<<< update/interface/sesionusecase-naol
-	// Get the corresponding session from the database
-=======
->>>>>>> main
 
+	// Get the corresponding session from the database
 	session, err := u.sessionRepo.GetByUserID(claims.UserID)
 	if err != nil {
 		return nil, errors.New("session not found")
 	}
-<<<<<<< update/interface/sesionusecase-naol
-	// check if the session is still active and hasnot expired
+	
+	// Check if the session is still active and has not expired
 	if !session.IsActive || time.Now().After(session.ExpiresAt) {
 		return nil, errors.New("session is expired or inactive")
 	}
+	
 	// Get the full user details
-	user, err := u.userRepo.GetByID(claims.UserID)
-	if err != nil {
-		return nil, errors.New(("user not found"))
-	}
-	// generate new accessToken
-=======
-
-	if !session.IsActive || time.Now().After(session.ExpiresAt) {
-		return nil, errors.New("session expired")
-	}
-
-	// Get user
 	user, err := u.userRepo.GetByID(claims.UserID)
 	if err != nil {
 		return nil, errors.New("user not found")
 	}
 	
->>>>>>> main
+	// Generate new access token
 	newAccessToken, err := u.jwtService.GenerateAccessToken(user.ID, user.Email, user.Role)
 	if err != nil {
 		return nil, err
 	}
-<<<<<<< update/interface/sesionusecase-naol
-	// update last active time on the session
-	if err := u.sessionRepo.UpdateLastActivity(session.ID); err != nil {
-	}
-
-	// Return the response with the new access token and the original refresh token
-=======
-
+	// Update last active time on the session
 	err = u.sessionRepo.UpdateLastActivity(session.ID)
 	if err != nil {
 		return nil, err
 	}
 
->>>>>>> main
+	// Return the response with the new access token and the original refresh token
 	return &domain.LoginResponse{
 		User:         user,
 		AccessToken:  newAccessToken,
@@ -248,8 +198,4 @@ func (u *UserUseCase) RefreshToken(refreshToken string) (*domain.LoginResponse, 
 
 func (u *UserUseCase) Logout(userID primitive.ObjectID) error {
 	return u.sessionRepo.DeleteByUserID(userID)
-<<<<<<< update/interface/sesionusecase-naol
 }
-=======
-} 
->>>>>>> main
