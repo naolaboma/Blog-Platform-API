@@ -33,7 +33,7 @@ func main() {
 
 	userRepo := repository.NewUserRepository(mongoDB)
 	sessionRepo := repository.NewSessionRepository(mongoDB)
-	blogRepo := repository.NewBlogRepository(mongoDB)
+	blogRepo := repository.NewBlogRepo(mongoDB)
 
 	userUseCase := usecase.NewUserUseCase(userRepo, passwordService, jwtService, sessionRepo)
 	blogUseCase := usecase.NewBlogUseCase(blogRepo, userRepo)

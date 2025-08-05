@@ -49,16 +49,15 @@ func (h *BlogHandler) CreateBlog(c *gin.Context) {
 		Content:      req.Content,
 		Tags:         req.Tags,
 		AuthorID:     userID,
-		ViewCount:    0,                
-		LikeCount:    0,                
-		CommentCount: 0,                
-		Likes:        []string{},       
-		Dislikes:     []string{},       
+		ViewCount:    0,
+		LikeCount:    0,
+		CommentCount: 0,
+		Likes:        []string{},
+		Dislikes:     []string{},
 		Comments:     []domain.Comment{},
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
-
 
 	err := h.blogUseCase.CreateBlog(blog, userID)
 	if err != nil {
@@ -120,16 +119,22 @@ func (h *BlogHandler) UpdateBlog(c *gin.Context) {
 		status := http.StatusInternalServerError
 		if err.Error() == "blog not found" {
 			status = http.StatusNotFound
-		} else if err.Error() == "unauthorized to update this blog" {
+		} else if err.Error() == "forbidden: you are not the author of this post" {
 			status = http.StatusForbidden
 		}
 		c.JSON(status, domain.ErrorResponse{Error: err.Error()})
 		return
 	}
 
+	updatedBlog, err := h.blogUseCase.GetBlog(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: "Failed to retrieve updated blog"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Blog updated successfully",
-		"blog":    blog,
+		"blog":    updatedBlog,
 	})
 }
 
@@ -242,8 +247,26 @@ func (h *BlogHandler) SearchBlogsByAuthor(c *gin.Context) {
 }
 
 func (h *BlogHandler) GetBlog(c *gin.Context) {
+	blogID := c.Param("id")
+
+	id, err := primitive.ObjectIDFromHex(blogID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Invalid blog ID"})
+		return
+	}
+
+	blog, err := h.blogUseCase.GetBlog(id)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if err.Error() == "blog not found" {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": "GetBlog endpoint",
+		"blog": blog,
 	})
 }
 

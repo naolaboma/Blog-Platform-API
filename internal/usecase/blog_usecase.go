@@ -8,13 +8,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// blogUseCase implements the domain.BlogUseCase interface.
 type blogUseCase struct {
 	blogRepo domain.BlogRepository
 	userRepo domain.UserRepository
 }
 
-// NewBlogUseCase creates a new instance of the blog use case.
 func NewBlogUseCase(
 	blogRepo domain.BlogRepository,
 	userRepo domain.UserRepository,

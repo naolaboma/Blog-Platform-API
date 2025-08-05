@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter(userHandler *controllers.UserHandler, authMiddleware *middleware.AuthMiddleware) *gin.Engine {
+func SetupRouter(userHandler *controllers.UserHandler, blogHandler *controllers.BlogHandler, authMiddleware *middleware.AuthMiddleware) *gin.Engine {
 	router := gin.Default()
 
 	// API v1 routes
@@ -35,7 +35,24 @@ func SetupRouter(userHandler *controllers.UserHandler, authMiddleware *middlewar
 			users.GET("/profile", userHandler.GetProfile)
 			users.PUT("/profile", userHandler.UpdateProfile)
 		}
+
+		// blog routes (authenticated)
+		blogs := v1.Group("/blogs")
+		blogs.Use(authMiddleware.AuthRequired())
+		{
+			blogs.POST("/", blogHandler.CreateBlog)
+			blogs.GET("/:id", blogHandler.GetBlog)
+			blogs.PUT("/:id", blogHandler.UpdateBlog)
+			blogs.DELETE("/:id", blogHandler.DeleteBlog)
+		}
+
+		// blog search routes (public)
+		blogsPublic := v1.Group("/blogs")
+		{
+			blogsPublic.GET("/search/title", blogHandler.SearchBlogsByTitle)
+			blogsPublic.GET("/search/author", blogHandler.SearchBlogsByAuthor)
+		}
 	}
 
 	return router
-} 
+}
