@@ -32,8 +32,8 @@ func main() {
 	jwtService := jwt.NewJWTService(cfg.JWT.Secret, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
 
 	userRepo := repository.NewUserRepository(mongoDB)
+	blogRepo := repository.NewBlogRepository(mongoDB)
 	sessionRepo := repository.NewSessionRepository(mongoDB)
-	blogRepo := repository.NewBlogRepo(mongoDB)
 
 	userUseCase := usecase.NewUserUseCase(userRepo, passwordService, jwtService, sessionRepo)
 	blogUseCase := usecase.NewBlogUseCase(blogRepo, userRepo)

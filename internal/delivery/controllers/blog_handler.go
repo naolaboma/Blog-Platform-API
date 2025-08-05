@@ -3,6 +3,7 @@ package controllers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"Blog-API/internal/domain"
@@ -72,8 +73,9 @@ func (h *BlogHandler) CreateBlog(c *gin.Context) {
 }
 
 func (h *BlogHandler) UpdateBlog(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
-	if !exists {
+	userID, userExists := middleware.GetUserIDFromContext(c)
+	userRole, roleExists := middleware.GetUserRoleFromContext(c)
+	if !userExists || !roleExists {
 		c.JSON(http.StatusUnauthorized, domain.ErrorResponse{Error: "User not authenticated"})
 		return
 	}
@@ -92,55 +94,43 @@ func (h *BlogHandler) UpdateBlog(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Invalid request data: " + err.Error()})
 		return
 	}
-
-	if err := h.validate.Struct(req); err != nil {
-		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Validation failed: " + err.Error()})
-		return
-	}
-
-	blog := &domain.Blog{
+	blogUpdate := &domain.Blog{
 		UpdatedAt: time.Now(),
 	}
 
 	if req.Title != nil {
-		blog.Title = *req.Title
+		blogUpdate.Title = *req.Title
 	}
 	if req.Content != nil {
-		blog.Content = *req.Content
+		blogUpdate.Content = *req.Content
 	}
 	if req.Tags != nil {
-		blog.Tags = *req.Tags
+		blogUpdate.Tags = *req.Tags
 	}
 
-	userRole := domain.RoleUser
+	// userRole := domain.RoleUser
 
-	err = h.blogUseCase.UpdateBlog(id, blog, userID, userRole)
+	blogUpdate, err = h.blogUseCase.UpdateBlog(id, blogUpdate, userID, userRole)
 	if err != nil {
 		status := http.StatusInternalServerError
-		if err.Error() == "blog not found" {
+		if strings.Contains(err.Error(), "not found") {
 			status = http.StatusNotFound
-		} else if err.Error() == "forbidden: you are not the author of this post" {
+		} else if strings.Contains(err.Error(), "forbidden") {
 			status = http.StatusForbidden
 		}
 		c.JSON(status, domain.ErrorResponse{Error: err.Error()})
 		return
 	}
-
-	updatedBlog, err := h.blogUseCase.GetBlog(id)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: "Failed to retrieve updated blog"})
-		return
-	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Blog updated successfully",
-		"blog":    updatedBlog,
+		"blog":    blogUpdate,
 	})
 }
 
 func (h *BlogHandler) DeleteBlog(c *gin.Context) {
-	userID, exists := middleware.GetUserIDFromContext(c)
-	if !exists {
+	userID, userExists := middleware.GetUserIDFromContext(c)
+	userRole, roleExists := middleware.GetUserRoleFromContext(c)
+	if !userExists || !roleExists {
 		c.JSON(http.StatusUnauthorized, domain.ErrorResponse{Error: "User not authenticated"})
 		return
 	}
@@ -153,14 +143,14 @@ func (h *BlogHandler) DeleteBlog(c *gin.Context) {
 		return
 	}
 
-	userRole := domain.RoleUser
+	//userRole := domain.RoleUser
 
 	err = h.blogUseCase.DeleteBlog(id, userID, userRole)
 	if err != nil {
 		status := http.StatusInternalServerError
-		if err.Error() == "blog not found" {
+		if strings.Contains(err.Error(), "not found") {
 			status = http.StatusNotFound
-		} else if err.Error() == "unauthorized to delete this blog" {
+		} else if strings.Contains(err.Error(), "forbidden") {
 			status = http.StatusForbidden
 		}
 		c.JSON(status, domain.ErrorResponse{Error: err.Error()})
