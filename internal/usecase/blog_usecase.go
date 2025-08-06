@@ -68,6 +68,8 @@ func (uc *blogUseCase) UpdateBlog(id primitive.ObjectID, blogUpdate *domain.Blog
 	originalBlog.Tags = blogUpdate.Tags
 	originalBlog.UpdatedAt = time.Now()
 
+	uc.blogRepo.Update(originalBlog)
+
 	return originalBlog, nil
 }
 
