@@ -200,47 +200,184 @@ func (br *BlogRepo) SearchByAuthor(author string, page, limit int) ([]*domain.Bl
 // These are required for the code to compile. They return empty data.
 
 func (br *BlogRepo) FilterByTags(tags []string, page, limit int) ([]*domain.Blog, int64, error) {
-	return []*domain.Blog{}, 0, nil
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{"tags": bson.M{"$in": tags}}
+	opts := options.Find()
+	opts.SetSkip(int64(page-1) * int64(limit))
+	opts.SetLimit(int64(limit))
+
+	total, err := br.collection.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+	curr, err := br.collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer curr.Close(ctx)
+
+	var blogs []*domain.Blog
+	if err := curr.All(ctx, &blogs); err != nil {
+		return nil, 0, err
+	}
+
+	return blogs, total, nil
 }
 
 func (br *BlogRepo) FilterByDate(startDate, endDate time.Time, page, limit int) ([]*domain.Blog, int64, error) {
-	return []*domain.Blog{}, 0, nil
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{
+		"created_at": bson.M{
+			"$gre": startDate,
+			"$lte": endDate,
+		},
+	}
+	opts := options.Find()
+	opts.SetSkip(int64(page-1) * int64(limit))
+	opts.SetLimit(int64(limit))
+
+	total, err := br.collection.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	curr, err := br.collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer curr.Close(ctx)
+
+	var blogs []*domain.Blog
+	if err := curr.All(ctx, &blogs); err != nil {
+		return nil, 0, err
+	}
+
+	return blogs, total, nil
 }
 
 func (br *BlogRepo) GetPopular(limit int) ([]*domain.Blog, error) {
-	return []*domain.Blog{}, nil
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	sort := bson.D{{Key: "view_count", Value: -1}, {Key: "like_count", Value: -1}}
+	opts := options.Find().SetSort(sort).SetLimit(int64(limit))
+
+	cursor, err := br.collection.Find(ctx, bson.D{}, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var blogs []*domain.Blog
+	if err := cursor.All(ctx, &blogs); err != nil {
+		return nil, err
+	}
+	return blogs, nil
 }
 
 func (br *BlogRepo) IncrementViewCount(id primitive.ObjectID) error {
-	return nil
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{"_id": id}
+	update := bson.M{"$inc": bson.M{"view_count": 1}}
+	_, err := br.collection.UpdateOne(ctx, filter, update)
+	return err
 }
 
 func (br *BlogRepo) AddComment(blogID primitive.ObjectID, comment *domain.Comment) error {
-	return nil
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	filter := bson.M{"_id": blogID}
+	update := bson.M{
+		"$push": bson.M{"comments": comment},
+		"$inc":  bson.M{"comment_count": 1},
+	}
+
+	_, err := br.collection.UpdateOne(ctx, filter, update)
+	return err
 }
 
 func (br *BlogRepo) DeleteComment(blogID, commentID primitive.ObjectID) error {
-	return nil
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	filter := bson.M{"_id": blogID}
+	update := bson.M{
+		"$pull": bson.M{"comments": bson.M{"_id": commentID}},
+		"$inc":  bson.M{"comment_count": -1},
+	}
+	_, err := br.collection.UpdateOne(ctx, filter, update)
+
+	return err
 }
 
 func (br *BlogRepo) UpdateComment(blogID, commentID primitive.ObjectID, content string) error {
-	return nil
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{"_id": blogID, "comments._id": commentID}
+	update := bson.M{
+		"$set": bson.M{
+			"comments.$.content":    content,
+			"comments.$.updated_at": time.Now(),
+		},
+	}
+	_, err := br.collection.UpdateOne(ctx, filter, update)
+	return err
 }
 
 func (br *BlogRepo) AddLike(blogID primitive.ObjectID, userID string) error {
-	return nil
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{"_id": blogID}
+	update := bson.M{
+		"$addToSet": bson.M{"likes": userID},
+		"$inc":      bson.M{"like_count": 1},
+	}
+	_, err := br.collection.UpdateOne(ctx, filter, update)
+	return err
 }
 
 func (br *BlogRepo) RemoveLike(blogID primitive.ObjectID, userID string) error {
-	return nil
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{"_id": blogID}
+	update := bson.M{
+		"$pull": bson.M{"likes": userID},
+		"$inc":  bson.M{"like_count": -1},
+	}
+	_, err := br.collection.UpdateOne(ctx, filter, update)
+	return err
 }
 
 func (br *BlogRepo) AddDislike(blogID primitive.ObjectID, userID string) error {
-	return nil
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{"_id": blogID}
+	update := bson.M{
+		"$addToSet": bson.M{"dislikes": userID},
+	}
+	_, err := br.collection.UpdateOne(ctx, filter, update)
+	return err
 }
 
 func (br *BlogRepo) RemoveDislike(blogID primitive.ObjectID, userID string) error {
-	return nil
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{"_id": blogID}
+	update := bson.M{
+		"$pull": bson.M{"dislikes": userID},
+	}
+	_, err := br.collection.UpdateOne(ctx, filter, update)
+	return err
 }
 
 func (br *BlogRepo) GetTagIDByName(name string) (primitive.ObjectID, error) {
