@@ -35,22 +35,42 @@ func SetupRouter(userHandler *controllers.UserHandler, blogHandler *controllers.
 			users.GET("/profile", userHandler.GetProfile)
 			users.PUT("/profile", userHandler.UpdateProfile)
 		}
-
-		// blog routes (authenticated)
+		// blog routes
 		blogs := v1.Group("/blogs")
-		blogs.Use(authMiddleware.AuthRequired())
 		{
-			blogs.POST("/", blogHandler.CreateBlog)
+			// public routes (no auth)
+			blogs.GET("/", blogHandler.GetAllBlogs)
 			blogs.GET("/:id", blogHandler.GetBlog)
+			blogs.GET("/popular", blogHandler.GetPopularBlogs)
+
+			//search and filter routes
+			search := blogs.Group("/search")
+			{
+				search.GET("/title", blogHandler.SearchBlogsByTitle)
+				search.GET("/author", blogHandler.SearchBlogsByAuthor)
+			}
+
+			filter := blogs.Group("/filter")
+			{
+				filter.GET("/tags", blogHandler.FilterBlogsByTags)
+				filter.GET("/date", blogHandler.FilterBlogsByDate)
+			}
+
+			// protected routes (auth required)
+			blogs.Use(authMiddleware.AuthRequired())
+			blogs.POST("/", blogHandler.CreateBlog)
 			blogs.PUT("/:id", blogHandler.UpdateBlog)
 			blogs.DELETE("/:id", blogHandler.DeleteBlog)
-		}
 
-		// blog search routes (public)
-		blogsPublic := v1.Group("/blogs")
-		{
-			blogsPublic.GET("/search/title", blogHandler.SearchBlogsByTitle)
-			blogsPublic.GET("/search/author", blogHandler.SearchBlogsByAuthor)
+			//comments
+
+			blogs.POST("/:id/comments", blogHandler.AddComment)
+			blogs.PUT("/:id/comments/:commentId", blogHandler.UpdateComment)
+			blogs.DELETE("/:id/comments/:commentId", blogHandler.DeleteComment)
+
+			//Reactions
+			blogs.POST("/:id/like", blogHandler.LikeBlog)
+			blogs.POST("/:id/dislike", blogHandler.DislikeBlog)
 		}
 	}
 

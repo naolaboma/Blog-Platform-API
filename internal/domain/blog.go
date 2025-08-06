@@ -13,14 +13,14 @@ type Blog struct {
 	AuthorID       primitive.ObjectID `bson:"author_id" json:"author_id"`
 	AuthorUsername string             `bson:"author_username" json:"author_username"`
 	Tags           []string           `bson:"tags,omitempty" json:"tags,omitempty"`
-	ViewCount    int                `bson:"view_count" json:"view_count"`
-	LikeCount    int                `bson:"like_count" json:"like_count"`
-	CommentCount int                `bson:"comment_count" json:"comment_count"`
-	Likes        []string           `bson:"likes,omitempty" json:"likes,omitempty"`       
-	Dislikes     []string           `bson:"dislikes,omitempty" json:"dislikes,omitempty"` 
-	Comments  []Comment  `bson:"comments,omitempty" json:"comments,omitempty"`
-	CreatedAt time.Time  `bson:"created_at" json:"created_at"`
-	UpdatedAt time.Time  `bson:"updated_at" json:"updated_at"`
+	ViewCount      int                `bson:"view_count" json:"view_count"`
+	LikeCount      int                `bson:"like_count" json:"like_count"`
+	CommentCount   int                `bson:"comment_count" json:"comment_count"`
+	Likes          []string           `bson:"likes,omitempty" json:"likes,omitempty"`
+	Dislikes       []string           `bson:"dislikes,omitempty" json:"dislikes,omitempty"`
+	Comments       []Comment          `bson:"comments,omitempty" json:"comments,omitempty"`
+	CreatedAt      time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt      time.Time          `bson:"updated_at" json:"updated_at"`
 }
 
 type Comment struct {
@@ -52,7 +52,6 @@ type Tag struct {
 	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
 }
 
-
 type BlogRepository interface {
 	Create(blog *Blog) error
 	GetByID(id primitive.ObjectID) (*Blog, error)
@@ -79,7 +78,7 @@ type BlogUseCase interface {
 	CreateBlog(blog *Blog, authorID primitive.ObjectID) error
 	GetBlog(id primitive.ObjectID) (*Blog, error)
 	GetAllBlogs(page, limit int, sort string) ([]*Blog, int64, error)
-	UpdateBlog(id primitive.ObjectID, blog *Blog, userID primitive.ObjectID, userRole string) error
+	UpdateBlog(id primitive.ObjectID, blog *Blog, userID primitive.ObjectID, userRole string) (*Blog, error)
 	DeleteBlog(id primitive.ObjectID, userID primitive.ObjectID, userRole string) error
 	SearchBlogsByTitle(title string, page, limit int) ([]*Blog, int64, error)
 	SearchBlogsByAuthor(author string, page, limit int) ([]*Blog, int64, error)
@@ -148,4 +147,4 @@ type PaginationResponse struct {
 	Limit      int         `json:"limit"`
 	Total      int64       `json:"total"`
 	TotalPages int         `json:"total_pages"`
-} 
+}

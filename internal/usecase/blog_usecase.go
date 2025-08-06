@@ -14,13 +14,8 @@ type blogUseCase struct {
 }
 
 func NewBlogUseCase(
-	blogRepo domain.BlogRepository,
-	userRepo domain.UserRepository,
-) domain.BlogUseCase {
-	return &blogUseCase{
-		blogRepo: blogRepo,
-		userRepo: userRepo,
-	}
+	blogRepo domain.BlogRepository, userRepo domain.UserRepository) domain.BlogUseCase {
+	return &blogUseCase{blogRepo: blogRepo, userRepo: userRepo}
 }
 
 func (uc *blogUseCase) CreateBlog(blog *domain.Blog, authorID primitive.ObjectID) error {
@@ -59,21 +54,23 @@ func (uc *blogUseCase) GetAllBlogs(page, limit int, sort string) ([]*domain.Blog
 	return uc.blogRepo.GetAll(page, limit, sort)
 }
 
-func (uc *blogUseCase) UpdateBlog(id primitive.ObjectID, blogUpdate *domain.Blog, userID primitive.ObjectID, userRole string) error {
+func (uc *blogUseCase) UpdateBlog(id primitive.ObjectID, blogUpdate *domain.Blog, userID primitive.ObjectID, userRole string) (*domain.Blog, error) {
 	originalBlog, err := uc.blogRepo.GetByID(id)
 	if err != nil {
-		return errors.New("blog not found")
+		return nil, errors.New("blog not found")
 	}
-	if originalBlog.AuthorID != userID {
-		return errors.New("forbidden: you are no the author of this post")
+	if originalBlog.AuthorID != userID && userRole != domain.RoleAdmin {
+		return nil, errors.New("forbidden: you are not authorized to update this post")
 	}
 
 	originalBlog.Title = blogUpdate.Title
 	originalBlog.Content = blogUpdate.Content
 	originalBlog.Tags = blogUpdate.Tags
-
 	originalBlog.UpdatedAt = time.Now()
-	return uc.blogRepo.Update(originalBlog)
+
+	uc.blogRepo.Update(originalBlog)
+
+	return originalBlog, nil
 }
 
 func (uc *blogUseCase) DeleteBlog(id primitive.ObjectID, userID primitive.ObjectID, userRole string) error {
