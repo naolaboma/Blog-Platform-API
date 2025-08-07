@@ -10,11 +10,11 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig
-	MongoDB  MongoDBConfig
-	JWT      JWTConfig
-	Email    EmailConfig
-	Upload   UploadConfig
+	Server  ServerConfig
+	MongoDB MongoDBConfig
+	JWT     JWTConfig
+	Email   EmailConfig
+	Upload  UploadConfig
 }
 
 type ServerConfig struct {
@@ -34,10 +34,12 @@ type JWTConfig struct {
 }
 
 type EmailConfig struct {
-	Host     string
-	Port     int
-	Username string
-	Password string
+	Host         string
+	Port         int
+	Username     string
+	Password     string
+	From         string
+	TemplatePath string
 }
 
 type UploadConfig struct {
@@ -65,10 +67,12 @@ func Load() *Config {
 			RefreshExpiry: getDurationEnv("JWT_REFRESH_EXPIRY", 168*time.Hour), // 7 days
 		},
 		Email: EmailConfig{
-			Host:     getEnv("SMTP_HOST", "smtp.gmail.com"),
-			Port:     getIntEnv("SMTP_PORT", 587),
-			Username: getEnv("SMTP_USERNAME", ""),
-			Password: getEnv("SMTP_PASSWORD", ""),
+			Host:         getEnv("SMTP_HOST", "smtp.gmail.com"),
+			Port:         getIntEnv("SMTP_PORT", 587),
+			Username:     getEnv("SMTP_EMAIL", ""),
+			Password:     getEnv("SMTP_PASSWORD", ""),
+			From:         getEnv("EMAIL_FROM", "noreply@blogplatform.com"),
+			TemplatePath: getEnv("EMAIL_TEMPLATE_PATH", "./internal/infrastructure/email/templates"),
 		},
 		Upload: UploadConfig{
 			Path:        getEnv("UPLOAD_PATH", "./uploads"),
@@ -110,4 +114,4 @@ func getDurationEnv(key string, defaultValue time.Duration) time.Duration {
 		}
 	}
 	return defaultValue
-} 
+}

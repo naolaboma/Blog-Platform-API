@@ -221,3 +221,19 @@ func (u *UserUseCase) RefreshToken(refreshToken string) (*domain.LoginResponse, 
 func (u *UserUseCase) Logout(userID primitive.ObjectID) error {
 	return u.sessionRepo.DeleteByUserID(userID)
 }
+
+func (u *UserUseCase) VerifyEmail(token string) error {
+	return errors.New("email verification not implemented yet")
+}
+
+func (u *UserUseCase) SendVerificationEmail(email string) error {
+	return errors.New("send verification email not implemented yet")
+}
+
+func (u *UserUseCase) SendPasswordResetEmail(email string) error {
+	return errors.New("send password reset email not implemented yet")
+}
+
+func (u *UserUseCase) ResetPassword(token, newPassword string) error {
+	return errors.New("password reset not implemented yet")
+}

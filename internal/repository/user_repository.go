@@ -226,3 +226,11 @@ func (r *UserRepository) UploadProfilePicture(id primitive.ObjectID, photo *doma
 	)
 	return err
 }
+
+func (r *UserRepository) VerifyEmail(id primitive.ObjectID) error {
+	return errors.New("email verification not implemented yet")
+}
+
+func (r *UserRepository) UpdateEmailVerificationStatus(id primitive.ObjectID, verified bool) error {
+	return errors.New("email verification status update not implemented yet")
+}

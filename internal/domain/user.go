@@ -12,6 +12,7 @@ type User struct {
 	Email          string             `bson:"email" json:"email" validate:"required,email"`
 	Password       string             `bson:"password" json:"-" validate:"required,min=6"` // "-" means don't include in JSON
 	Role           string             `bson:"role" json:"role"`
+	EmailVerified  bool               `bson:"email_verified" json:"email_verified"`
 	ProfilePicture *Photo             `bson:"profile_picture,omitempty" json:"profile_picture,omitempty"`
 	Bio            string             `bson:"bio,omitempty" json:"bio,omitempty"`
 	CreatedAt      time.Time          `bson:"created_at" json:"created_at"`
@@ -42,6 +43,8 @@ type UserRepository interface {
 	UpdatePassword(id primitive.ObjectID, password string) error
 	UpdateRole(id primitive.ObjectID, role string) error
 	UploadProfilePicture(id primitive.ObjectID, photo *Photo) error
+	VerifyEmail(id primitive.ObjectID) error
+	UpdateEmailVerificationStatus(id primitive.ObjectID, verified bool) error
 }
 
 type UserUseCase interface {
@@ -55,6 +58,10 @@ type UserUseCase interface {
 	CheckPassword(password, hash string) bool
 	RefreshToken(refreshToken string) (*LoginResponse, error)
 	Logout(userID primitive.ObjectID) error
+	VerifyEmail(token string) error
+	SendVerificationEmail(email string) error
+	SendPasswordResetEmail(email string) error
+	ResetPassword(token, newPassword string) error
 }
 
 type RegisterRequest struct {
@@ -85,6 +92,32 @@ type RefreshTokenRequest struct {
 }
 
 type LogoutResponse struct {
+	Message string `json:"message"`
+}
+
+type EmailVerificationRequest struct {
+	Token string `json:"token" validate:"required"`
+}
+
+type EmailVerificationResponse struct {
+	Message string `json:"message"`
+	User    *User  `json:"user"`
+}
+
+type PasswordResetRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+type PasswordResetResponse struct {
+	Message string `json:"message"`
+}
+
+type NewPasswordRequest struct {
+	Token       string `json:"token" validate:"required"`
+	NewPassword string `json:"new_password" validate:"required,min=6"`
+}
+
+type NewPasswordResponse struct {
 	Message string `json:"message"`
 }
 

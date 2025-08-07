@@ -167,3 +167,19 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		"user":    updatedUser,
 	})
 }
+
+func (h *UserHandler) VerifyEmail(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, domain.ErrorResponse{Error: "email verification endpoint not implemented yet"})
+}
+
+func (h *UserHandler) SendVerificationEmail(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, domain.ErrorResponse{Error: "send verification email endpoint not implemented yet"})
+}
+
+func (h *UserHandler) SendPasswordResetEmail(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, domain.ErrorResponse{Error: "send password reset email endpoint not implemented yet"})
+}
+
+func (h *UserHandler) ResetPassword(c *gin.Context) {
+	c.JSON(http.StatusNotImplemented, domain.ErrorResponse{Error: "password reset endpoint not implemented yet"})
+}
