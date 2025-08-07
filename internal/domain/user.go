@@ -48,7 +48,7 @@ type UserUseCase interface {
 	Register(username, email, password string) (*User, error)
 	Login(email, password string) (*LoginResponse, error)
 	GetByID(id primitive.ObjectID) (*User, error)
-	UpdateProfile(id primitive.ObjectID, bio, profilePic, contactInfo *string) (*User, error)
+	UpdateProfile(id primitive.ObjectID, req *UpdateProfileRequest) (*User, error)
 	UpdateRole(id primitive.ObjectID, role string) error
 	ValidatePassword(password string) error
 	HashPassword(password string) (string, error)
@@ -75,9 +75,9 @@ type LoginResponse struct {
 }
 
 type UpdateProfileRequest struct {
-	Bio         *string `json:"bio,omitempty"`
-	ProfilePic  *string `json:"profile_pic,omitempty"`
-	ContactInfo *string `json:"contact_info,omitempty"`
+	Username *string `json:"username,omitempty" validate:"omitempty,min=3,max=50"`
+	Email    *string `json:"email,omitempty" validate:"omitempty,email"`
+	Bio      *string `json:"bio,omitempty" validate:"omitempty,max=500"`
 }
 
 type RefreshTokenRequest struct {

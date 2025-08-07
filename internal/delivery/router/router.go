@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter(userHandler *controllers.UserHandler, blogHandler *controllers.BlogHandler, authMiddleware *middleware.AuthMiddleware) *gin.Engine {
+func SetupRouter(userHandler *controllers.UserHandler, blogHandler *controllers.BlogHandler, aiHandler *controllers.AIHandler, authMiddleware *middleware.AuthMiddleware) *gin.Engine {
 	router := gin.Default()
 
 	// API v1 routes
@@ -71,6 +71,15 @@ func SetupRouter(userHandler *controllers.UserHandler, blogHandler *controllers.
 			//Reactions
 			blogs.POST("/:id/like", blogHandler.LikeBlog)
 			blogs.POST("/:id/dislike", blogHandler.DislikeBlog)
+		}
+
+		// AI routes (authenticated)
+		ai := v1.Group("/ai")
+		ai.Use(authMiddleware.AuthRequired())
+		{
+			ai.POST("/generate-blog", aiHandler.GenerateBlog)
+			ai.POST("/enhance-blog", aiHandler.EnhanceBlog)
+			ai.POST("/suggest-ideas", aiHandler.SuggestBlogIdeas)
 		}
 	}
 
