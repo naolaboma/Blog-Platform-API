@@ -43,7 +43,7 @@ func (c *JWTClaims) GetIssuedAt() (*jwt.NumericDate, error) {
 
 // returns the issuer
 func (c *JWTClaims) GetIssuer() (string, error) {
-	return "blog-api", nil
+	return "Blog-API", nil
 }
 
 // returns the subject

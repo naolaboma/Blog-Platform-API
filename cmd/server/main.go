@@ -6,6 +6,7 @@ import (
 
 	"Blog-API/internal/delivery/controllers"
 	"Blog-API/internal/delivery/router"
+	"Blog-API/internal/infrastructure/ai"
 	"Blog-API/internal/infrastructure/database"
 	"Blog-API/internal/infrastructure/jwt"
 	"Blog-API/internal/infrastructure/middleware"
@@ -30,6 +31,7 @@ func main() {
 
 	passwordService := password.NewPasswordService()
 	jwtService := jwt.NewJWTService(cfg.JWT.Secret, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
+	aiService := ai.NewAIService()
 
 	userRepo := repository.NewUserRepository(mongoDB)
 	blogRepo := repository.NewBlogRepository(mongoDB)
@@ -37,13 +39,15 @@ func main() {
 
 	userUseCase := usecase.NewUserUseCase(userRepo, passwordService, jwtService, sessionRepo)
 	blogUseCase := usecase.NewBlogUseCase(blogRepo, userRepo)
+	aiUseCase := usecase.NewAIUseCase(aiService)
 
 	userHandler := controllers.NewUserHandler(userUseCase)
 	blogHandler := controllers.NewBlogHandler(blogUseCase)
+	aiHandler := controllers.NewAIHandler(aiUseCase)
 
 	authMiddleware := middleware.NewAuthMiddleware(jwtService, sessionRepo)
 
-	router := router.SetupRouter(userHandler, blogHandler, authMiddleware)
+	router := router.SetupRouter(userHandler, blogHandler, aiHandler, authMiddleware)
 
 	log.Printf("Server starting on port %s", cfg.Server.Port)
 	log.Printf("MongoDB connected to: %s", cfg.MongoDB.URI)
