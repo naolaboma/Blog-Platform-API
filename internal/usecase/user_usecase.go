@@ -13,14 +13,16 @@ type UserUseCase struct {
 	passwordService domain.PasswordService
 	jwtService      domain.JWTService
 	sessionRepo     domain.SessionRepository
+	emailService    domain.EmailService
 }
 
-func NewUserUseCase(userRepo domain.UserRepository, passwordService domain.PasswordService, jwtService domain.JWTService, sessionRepo domain.SessionRepository) domain.UserUseCase {
+func NewUserUseCase(userRepo domain.UserRepository, passwordService domain.PasswordService, jwtService domain.JWTService, sessionRepo domain.SessionRepository, emailService domain.EmailService) domain.UserUseCase {
 	return &UserUseCase{
 		userRepo:        userRepo,
 		passwordService: passwordService,
 		jwtService:      jwtService,
 		sessionRepo:     sessionRepo,
+		emailService:    emailService,
 	}
 }
 
@@ -223,17 +225,118 @@ func (u *UserUseCase) Logout(userID primitive.ObjectID) error {
 }
 
 func (u *UserUseCase) VerifyEmail(token string) error {
-	return errors.New("email verification not implemented yet")
+	// find the session associated with this token
+	session, err := u.sessionRepo.GetByVerificationToken(token)
+	if err != nil {
+		return errors.New("invalid or expired verification token")
+	}
+	// check if the token has expired
+	if time.Now().After(session.VerificationTokenExpiresAt) {
+		return errors.New("invalid or expired verification token")
+	}
+
+	// update/mark user's email as verified in the database
+	if err := u.userRepo.UpdateEmailVerificationStatus(session.UserID, true); err != nil {
+		return err
+	}
+	// clean verif token from session so it cant be reused
+	session.VerificationToken = ""
+	return u.sessionRepo.Update(session)
 }
 
 func (u *UserUseCase) SendVerificationEmail(email string) error {
-	return errors.New("send verification email not implemented yet")
+	user, err := u.userRepo.GetByEmail(email)
+	if err != nil {
+		return errors.New("if a user with this email exists, a verification email has been sent")
+	}
+
+	// check if already verified
+	if user.EmailVerified {
+		return errors.New("email is already verified")
+	}
+	// generate secure, short lived verification token
+	verificationToken := u.passwordService.GenerateSecureToken(32)
+
+	//store the token and its expiry in a session document
+	//(we reuse the session logic for simplicity)
+
+	session := &domain.Session{
+		UserID:                     user.ID,
+		Username:                   user.Username,
+		VerificationToken:          verificationToken,
+		VerificationTokenExpiresAt: time.Now().Add(24 * time.Hour),
+		IsActive:                   false, // this is not a login session
+	}
+	// we create or update session entry for this user
+	existingSession, _ := u.sessionRepo.GetByUserID(user.ID)
+	if existingSession != nil {
+		existingSession.VerificationToken = session.VerificationToken
+		existingSession.VerificationTokenExpiresAt = session.VerificationTokenExpiresAt
+		if err := u.sessionRepo.Update(existingSession); err != nil {
+			return err
+		}
+	} else {
+		if err := u.sessionRepo.Create(session); err != nil {
+			return err
+		}
+	}
+
+	// send the email in Background
+	go u.emailService.SendVerificationEmail(user.Email, user.Username, verificationToken)
+	return nil
 }
 
 func (u *UserUseCase) SendPasswordResetEmail(email string) error {
-	return errors.New("send password reset email not implemented yet")
+	user, err := u.userRepo.GetByEmail(email)
+	if err != nil {
+		return errors.New("if a user with this email exists, a password reset email has been sent")
+	}
+
+	resetToken := u.passwordService.GenerateSecureToken(32)
+
+	session, err := u.sessionRepo.GetByUserID(user.ID)
+	if err != nil || session == nil {
+		session = &domain.Session{UserID: user.ID, Username: user.Username}
+	}
+
+	session.PasswordResetToken = resetToken
+	session.ResetTokenExpiresAt = time.Now().Add(1 * time.Hour)
+	if err != nil {
+		if err := u.sessionRepo.Create(session); err != nil {
+			return err
+		}
+	} else {
+		if err := u.sessionRepo.Update(session); err != nil {
+			return err
+		}
+	}
+
+	go u.emailService.SendPasswordResetEmail(user.Email, user.Username, resetToken)
+	return nil
 }
 
 func (u *UserUseCase) ResetPassword(token, newPassword string) error {
-	return errors.New("password reset not implemented yet")
+	// validate the new pasword's strength
+	if err := u.passwordService.ValidatePassword(newPassword); err != nil {
+		return err
+	}
+
+	// find the session associated with the reset token
+	session, err := u.sessionRepo.GetByResetToken(token)
+	if err != nil {
+		return errors.New("invalid or expired passoword reset token")
+	}
+	if time.Now().After(session.ResetTokenExpiresAt) {
+		return errors.New("invalid or expired password reset token")
+	}
+	// hash the new password
+	hashedPassword, err := u.passwordService.HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+	if err := u.userRepo.UpdatePassword(session.UserID, hashedPassword); err != nil {
+		return err
+	}
+	session.PasswordResetToken = ""
+	return u.sessionRepo.Update(session)
 }

@@ -9,12 +9,16 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type AIConfig struct {
+	GroqAPIKey string
+}
 type Config struct {
 	Server  ServerConfig
 	MongoDB MongoDBConfig
 	JWT     JWTConfig
 	Email   EmailConfig
 	Upload  UploadConfig
+	AI      AIConfig
 }
 
 type ServerConfig struct {
@@ -77,6 +81,9 @@ func Load() *Config {
 		Upload: UploadConfig{
 			Path:        getEnv("UPLOAD_PATH", "./uploads"),
 			MaxFileSize: getInt64Env("MAX_FILE_SIZE", 5*1024*1024), // 5MB
+		},
+		AI: AIConfig{
+			GroqAPIKey: getEnv("GROQ_API_KEY", ""),
 		},
 	}
 }

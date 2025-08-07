@@ -66,7 +66,7 @@ type AuthMiddleware interface {
 
 // interface for email operations
 type EmailService interface {
-	SendPasswordResetEmail(email, token string) error
+	SendPasswordResetEmail(email, username, token string) error
 	SendWelcomeEmail(email, username string) error
 	SendVerificationEmail(email, username, token string) error
 }
