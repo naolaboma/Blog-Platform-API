@@ -261,55 +261,267 @@ func (h *BlogHandler) GetBlog(c *gin.Context) {
 }
 
 func (h *BlogHandler) GetAllBlogs(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"message": "GetAllBlogs endpoint",
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+	sort := c.DefaultQuery("sort", "newest")
+
+	page, _ := strconv.Atoi(pageStr)
+	if page < 1 {
+		page = 1
+	}
+	limit, _ := strconv.Atoi(limitStr)
+	if limit < 1 || limit > 100 {
+		limit = 10
+	}
+	blogs, total, err := h.blogUseCase.GetAllBlogs(page, limit, sort)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+	totalPages := int((total + int64(limit) - 1) / int64(limit))
+	c.JSON(http.StatusOK, domain.PaginationResponse{
+		Data:       blogs,
+		Page:       page,
+		Limit:      limit,
+		Total:      total,
+		TotalPages: totalPages,
 	})
 }
 
 func (h *BlogHandler) GetPopularBlogs(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"message": "GetPopularBlogs endpoint",
-	})
+	limitStr := c.DefaultQuery("limit", "5")
+	limit, _ := strconv.Atoi(limitStr)
+
+	if limit < 1 || limit > 20 {
+		limit = 5
+	}
+	blogs, err := h.blogUseCase.GetPopularBlogs(limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, blogs)
 }
 
 func (h *BlogHandler) FilterBlogsByTags(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"message": "FilterBlogsByTags endpoint",
+	tagsQuery := c.Query("tags")
+	if tagsQuery == "" {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Tags query parameter is required"})
+		return
+	}
+	tags := strings.Split(tagsQuery, ",")
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+	page, _ := strconv.Atoi(pageStr)
+	limit, _ := strconv.Atoi(limitStr)
+
+	blogs, total, err := h.blogUseCase.FilterBlogsByTags(tags, page, limit)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	totalPages := int((total + int64(limit) - 1) / int64(limit))
+
+	c.JSON(http.StatusOK, domain.PaginationResponse{
+		Data:       blogs,
+		Page:       page,
+		Limit:      limit,
+		Total:      total,
+		TotalPages: totalPages,
 	})
+
 }
 
 func (h *BlogHandler) FilterBlogsByDate(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"message": "FilterBlogsByDate endpoint",
+	layout := "2006-01-02"
+	startDateStr := c.Query("startDate")
+	endDateStr := c.Query("endDate")
+
+	startDate, err1 := time.Parse(layout, startDateStr)
+	endDate, err2 := time.Parse(layout, endDateStr)
+
+	if err1 != nil || err2 != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "invalid data format. Please use YYYY-MM-DD."})
+		return
+	}
+
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "10")
+
+	page, _ := strconv.Atoi(pageStr)
+	limit, _ := strconv.Atoi(limitStr)
+
+	blogs, total, err := h.blogUseCase.FilterBlogsByDate(startDate, endDate, page, limit)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	totalPages := int((total + int64(limit) - 1) / int64(limit))
+
+	c.JSON(http.StatusOK, domain.PaginationResponse{
+		Data:       blogs,
+		Page:       page,
+		Limit:      limit,
+		Total:      total,
+		TotalPages: totalPages,
 	})
 }
 
 func (h *BlogHandler) AddComment(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Addcomment endpoint",
+	userID, exists := middleware.GetUserIDFromContext(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, domain.ErrorResponse{Error: "User not authenticated"})
+		return
+	}
+	blogID, err := primitive.ObjectIDFromHex(c.Param("id"))
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Invalid blog ID"})
+		return
+	}
+
+	var req domain.CreateCommentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	if err := h.validate.Struct(req); err != nil {
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: "Validation failed" + err.Error()})
+		return
+	}
+
+	comment := &domain.Comment{
+		AuthorID: userID,
+		Content:  req.Content,
+	}
+
+	if err := h.blogUseCase.AddComment(blogID, comment); err != nil {
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Comment added successfully",
+		"comment": comment,
 	})
 }
 
 func (h *BlogHandler) DeleteComment(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"message": "DeleteComment endpoint",
-	})
+	userID, exists := middleware.GetUserIDFromContext(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, domain.ErrorResponse{Error: "User not authenticated"})
+		return
+	}
+	blogID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Invalid blog ID"})
+		return
+	}
+	commentID, err := primitive.ObjectIDFromHex(c.Param("commentId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Invalid comment ID"})
+		return
+	}
+
+	if err := h.blogUseCase.DeleteComment(blogID, commentID, userID); err != nil {
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "forbidden") {
+			status = http.StatusForbidden
+		} else if strings.Contains(err.Error(), "not found") {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Comment deleted successfully"})
 }
 
 func (h *BlogHandler) UpdateComment(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"message": "UpdateComment endpoint",
-	})
+	userID, exists := middleware.GetUserIDFromContext(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, domain.ErrorResponse{Error: "User not authenticated"})
+		return
+	}
+
+	blogID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Invalid blog ID"})
+		return
+	}
+	commentID, err := primitive.ObjectIDFromHex(c.Param("commentId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Invalid comment ID"})
+		return
+	}
+	var req domain.UpdateCommentRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Invalid request body"})
+		return
+	}
+	if err := h.validate.Struct(req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Validation failed: " + err.Error()})
+	}
+
+	if err := h.blogUseCase.UpdateComment(blogID, commentID, req.Content, userID); err != nil {
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "forbidden") {
+			status = http.StatusForbidden
+		} else if strings.Contains(err.Error(), "not found") {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Comment updated successfully"})
 }
 
 func (h *BlogHandler) LikeBlog(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"message": "LikeBlog endpoint",
-	})
+	userIDPbj, exists := middleware.GetUserIDFromContext(c)
+	if !exists {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "User not authenticated"})
+		return
+	}
+	userIDStr := userIDPbj.Hex()
+
+	blogID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Invalid blog ID"})
+		return
+	}
+
+	if err := h.blogUseCase.LikeBlog(blogID, userIDStr); err != nil {
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Blog reaction updated"})
+
 }
 
 func (h *BlogHandler) DislikeBlog(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"message": "DislikeBlog endpoint",
-	})
+	userIDObj, exists := middleware.GetUserIDFromContext(c)
+	if !exists {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "User not authenticated"})
+		return
+	}
+	userIDStr := userIDObj.Hex()
+	blogID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Invalid blog ID"})
+		return
+	}
+	if err := h.blogUseCase.DislikeBlog(blogID, userIDStr); err != nil {
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Blog reaction updated"})
+
 }

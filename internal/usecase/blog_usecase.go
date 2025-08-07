@@ -68,7 +68,10 @@ func (uc *blogUseCase) UpdateBlog(id primitive.ObjectID, blogUpdate *domain.Blog
 	originalBlog.Tags = blogUpdate.Tags
 	originalBlog.UpdatedAt = time.Now()
 
-	uc.blogRepo.Update(originalBlog)
+	if err := uc.blogRepo.Update(originalBlog); err != nil {
+		// If the database fails to save, return the error.
+		return nil, err
+	}
 
 	return originalBlog, nil
 }
