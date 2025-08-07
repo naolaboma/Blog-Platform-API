@@ -20,22 +20,18 @@ func NewAIHandler(aiUseCase *usecase.AIUseCase) *AIHandler {
 	}
 }
 
-// GenerateBlogRequest represents the request for generating a blog
 type GenerateBlogRequest struct {
 	Topic string `json:"topic" validate:"required,min=3,max=200"`
 }
 
-// EnhanceBlogRequest represents the request for enhancing a blog
 type EnhanceBlogRequest struct {
 	Content string `json:"content" validate:"required,min=50,max=10000"`
 }
 
-// SuggestBlogIdeasRequest represents the request for suggesting blog ideas
 type SuggestBlogIdeasRequest struct {
 	Keywords []string `json:"keywords" validate:"required,min=1,max=10,dive,min=2,max=50"`
 }
 
-// GenerateBlog generates a complete blog post from a topic
 func (h *AIHandler) GenerateBlog(c *gin.Context) {
 	var req GenerateBlogRequest
 
@@ -68,7 +64,6 @@ func (h *AIHandler) GenerateBlog(c *gin.Context) {
 	})
 }
 
-// EnhanceBlog provides suggestions to improve an existing blog
 func (h *AIHandler) EnhanceBlog(c *gin.Context) {
 	var req EnhanceBlogRequest
 
@@ -100,7 +95,6 @@ func (h *AIHandler) EnhanceBlog(c *gin.Context) {
 	})
 }
 
-// SuggestBlogIdeas generates blog post ideas based on keywords
 func (h *AIHandler) SuggestBlogIdeas(c *gin.Context) {
 	var req SuggestBlogIdeasRequest
 

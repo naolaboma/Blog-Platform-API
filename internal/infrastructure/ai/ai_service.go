@@ -15,44 +15,42 @@ type AIService struct {
 }
 
 type AIRequest struct {
-	Contents []Content `json:"contents"`
+	Model    string    `json:"model"`
+	Messages []Message `json:"messages"`
 }
 
-type Content struct {
-	Parts []Part `json:"parts"`
-}
-
-type Part struct {
-	Text string `json:"text"`
+type Message struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
 }
 
 type AIResponse struct {
-	Candidates []Candidate `json:"candidates"`
+	Choices []Choice `json:"choices"`
 }
 
-type Candidate struct {
-	Content Content `json:"content"`
+type Choice struct {
+	Message Message `json:"message"`
 }
 
 func NewAIService() *AIService {
 	apiKey := os.Getenv("GROQ_API_KEY")
 	// if apiKey == "" {
-	// 	apiKey = ""
+	// 	apiKey = os.Getenv("")
 	// }
 
 	return &AIService{
 		apiKey:  apiKey,
-		baseURL: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+		baseURL: "https://api.groq.com/openai/v1/chat/completions",
 	}
 }
 
 func (g *AIService) GenerateContent(prompt string) (string, error) {
 	request := AIRequest{
-		Contents: []Content{
+		Model: "llama-3.3-70b-versatile",
+		Messages: []Message{
 			{
-				Parts: []Part{
-					{Text: prompt},
-				},
+				Role:    "user",
+				Content: prompt,
 			},
 		},
 	}
@@ -62,9 +60,16 @@ func (g *AIService) GenerateContent(prompt string) (string, error) {
 		return "", fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s?key=%s", g.baseURL, g.apiKey)
+	req, err := http.NewRequest("POST", g.baseURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
 
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	req.Header.Set("Authorization", "Bearer "+g.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to make request: %w", err)
 	}
@@ -76,7 +81,7 @@ func (g *AIService) GenerateContent(prompt string) (string, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("API request failed with status: %d, body: %s", resp.StatusCode, string(bodyBytes))
+		return "", fmt.Errorf("api request failed with status: %d, body: %s", resp.StatusCode, string(bodyBytes))
 	}
 
 	var response AIResponse
@@ -84,11 +89,11 @@ func (g *AIService) GenerateContent(prompt string) (string, error) {
 		return "", fmt.Errorf("failed to decode response: %w, body: %s", err, string(bodyBytes))
 	}
 
-	if len(response.Candidates) == 0 || len(response.Candidates[0].Content.Parts) == 0 {
+	if len(response.Choices) == 0 {
 		return "", fmt.Errorf("no content generated, response: %s", string(bodyBytes))
 	}
 
-	return response.Candidates[0].Content.Parts[0].Text, nil
+	return response.Choices[0].Message.Content, nil
 }
 
 // generate blog post
