@@ -75,7 +75,7 @@ func (u *UserUseCase) Login(email, password string) (*domain.LoginResponse, erro
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Generate refresh token
 	refreshToken, err := u.jwtService.GenerateRefreshToken(user.ID, user.Email, user.Role)
 	if err != nil {
@@ -95,7 +95,7 @@ func (u *UserUseCase) Login(email, password string) (*domain.LoginResponse, erro
 	if err := u.sessionRepo.Create(session); err != nil {
 		return nil, err
 	}
-	
+
 	// Return login response
 	return &domain.LoginResponse{
 		User:         user,
@@ -108,26 +108,48 @@ func (u *UserUseCase) GetByID(id primitive.ObjectID) (*domain.User, error) {
 	return u.userRepo.GetByID(id)
 }
 
-func (u *UserUseCase) UpdateProfile(id primitive.ObjectID, bio, profilePic, contactInfo *string) (*domain.User, error) {
+func (u *UserUseCase) UpdateProfile(id primitive.ObjectID, req *domain.UpdateProfileRequest) (*domain.User, error) {
 	// Check if user exists
-	_, err := u.userRepo.GetByID(id)
+	currentUser, err := u.userRepo.GetByID(id)
 	if err != nil {
 		return nil, err
 	}
 
 	// Prepare updates
 	updates := make(map[string]interface{})
-	if bio != nil {
-		updates["bio"] = *bio
+
+	// Handle username update with uniqueness check
+	if req.Username != nil && *req.Username != currentUser.Username {
+		// Check if username already exists (excluding current user)
+		existingUser, _ := u.userRepo.GetByUsername(*req.Username)
+		if existingUser != nil && existingUser.ID != id {
+			return nil, errors.New("username already exists")
+		}
+		updates["username"] = *req.Username
 	}
-	if profilePic != nil {
-		updates["profile_picture"] = *profilePic
+
+	// Handle email update with uniqueness check
+	if req.Email != nil && *req.Email != currentUser.Email {
+		// Check if email already exists (excluding current user)
+		if existingUser, _ := u.userRepo.GetByEmail(*req.Email); existingUser != nil && existingUser.ID != id {
+			return nil, errors.New("email already exists")
+		}
+		updates["email"] = *req.Email
 	}
+
+	// Handle bio update
+	if req.Bio != nil {
+		updates["bio"] = *req.Bio
+	}
+
+	// Add updated_at timestamp
 	updates["updated_at"] = time.Now()
 
-	// Update user
-	if err := u.userRepo.UpdateProfile(id, updates); err != nil {
-		return nil, err
+	// Update user if there are any changes
+	if len(updates) > 1 { // More than just updated_at
+		if err := u.userRepo.UpdateProfile(id, updates); err != nil {
+			return nil, err
+		}
 	}
 
 	// Return updated user
@@ -165,18 +187,18 @@ func (u *UserUseCase) RefreshToken(refreshToken string) (*domain.LoginResponse, 
 	if err != nil {
 		return nil, errors.New("session not found")
 	}
-	
+
 	// Check if the session is still active and has not expired
 	if !session.IsActive || time.Now().After(session.ExpiresAt) {
 		return nil, errors.New("session is expired or inactive")
 	}
-	
+
 	// Get the full user details
 	user, err := u.userRepo.GetByID(claims.UserID)
 	if err != nil {
 		return nil, errors.New("user not found")
 	}
-	
+
 	// Generate new access token
 	newAccessToken, err := u.jwtService.GenerateAccessToken(user.ID, user.Email, user.Role)
 	if err != nil {
