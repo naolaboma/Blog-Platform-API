@@ -10,8 +10,8 @@ import (
 )
 
 type AuthMiddleware struct {
-	jwtService    domain.JWTService
-	sessionRepo   domain.SessionRepository
+	jwtService  domain.JWTService
+	sessionRepo domain.SessionRepository
 }
 
 func NewAuthMiddleware(jwtService domain.JWTService, sessionRepo domain.SessionRepository) *AuthMiddleware {
@@ -21,7 +21,7 @@ func NewAuthMiddleware(jwtService domain.JWTService, sessionRepo domain.SessionR
 	}
 }
 
-//  checks if user is authenticated
+// checks if user is authenticated
 func (a *AuthMiddleware) AuthRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := extractToken(c)
@@ -45,7 +45,7 @@ func (a *AuthMiddleware) AuthRequired() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		
+
 		if !session.IsActive {
 			c.JSON(http.StatusUnauthorized, domain.ErrorResponse{Error: "Session inactive"})
 			c.Abort()
@@ -65,25 +65,35 @@ func (a *AuthMiddleware) AuthRequired() gin.HandlerFunc {
 func (a *AuthMiddleware) AdminRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// First check if user is authenticated
-		a.AuthRequired()(c)
-		if c.IsAborted() {
-			return
-		}
 
-		// Then check if user is admin
-		role, exists := c.Get("user_role")
+		// a.AuthRequired()(c)
+		// if c.IsAborted() {
+		// 	return
+		// }
+		// if !exists {
+		// 	c.JSON(http.StatusUnauthorized, domain.ErrorResponse{Error: "User role not found"})
+		// 	c.Abort()
+		// 	return
+		// }
+
+		// if role != "admin" {
+		// 	c.JSON(http.StatusForbidden, domain.ErrorResponse{Error: "Admin access required"})
+		// 	c.Abort()
+		// 	return
+		// }
+
+		role, exists := GetUserRoleFromContext(c)
 		if !exists {
-			c.JSON(http.StatusUnauthorized, domain.ErrorResponse{Error: "User role not found"})
+			c.JSON(http.StatusUnauthorized, domain.ErrorResponse{Error: "Authorization information not found in context"})
 			c.Abort()
 			return
 		}
-
-		if role != "admin" {
-			c.JSON(http.StatusForbidden, domain.ErrorResponse{Error: "Admin access required"})
+		// Then check if user is admin
+		if role != domain.RoleAdmin {
+			c.JSON(http.StatusForbidden, domain.ErrorResponse{Error: "Forbidden: Adminstrator access required"})
 			c.Abort()
 			return
 		}
-
 		c.Next()
 	}
 }
@@ -154,4 +164,4 @@ func GetUserRoleFromContext(c *gin.Context) (string, bool) {
 	}
 
 	return "", false
-} 
+}

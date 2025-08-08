@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"mime/multipart"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -42,7 +43,7 @@ type UserRepository interface {
 	UpdateProfile(id primitive.ObjectID, updates map[string]interface{}) error
 	UpdatePassword(id primitive.ObjectID, password string) error
 	UpdateRole(id primitive.ObjectID, role string) error
-	UploadProfilePicture(id primitive.ObjectID, photo *Photo) error
+	UpdateProfilePicture(id primitive.ObjectID, photo *Photo) error
 	VerifyEmail(id primitive.ObjectID) error
 	UpdateEmailVerificationStatus(id primitive.ObjectID, verified bool) error
 }
@@ -51,8 +52,6 @@ type UserUseCase interface {
 	Register(username, email, password string) (*User, error)
 	Login(email, password string) (*LoginResponse, error)
 	GetByID(id primitive.ObjectID) (*User, error)
-	UpdateProfile(id primitive.ObjectID, req *UpdateProfileRequest) (*User, error)
-	UpdateRole(id primitive.ObjectID, role string) error
 	ValidatePassword(password string) error
 	HashPassword(password string) (string, error)
 	CheckPassword(password, hash string) bool
@@ -62,6 +61,10 @@ type UserUseCase interface {
 	SendVerificationEmail(email string) error
 	SendPasswordResetEmail(email string) error
 	ResetPassword(token, newPassword string) error
+
+	UpdateProfile(id primitive.ObjectID, req *UpdateProfileRequest) (*User, error)
+	UpdateRole(adminUserID, targetUserID primitive.ObjectID, role string) error
+	UploadProfilePicture(userID primitive.ObjectID, file multipart.File, handler *multipart.FileHeader) (*User, error)
 }
 
 type RegisterRequest struct {
@@ -123,4 +126,8 @@ type NewPasswordResponse struct {
 
 type ErrorResponse struct {
 	Error string `json:"error"`
+}
+
+type UpdateRoleRequest struct {
+	Role string `json:"role" validate:"required,oneof=user admin"`
 }

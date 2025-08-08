@@ -3,6 +3,8 @@ package usecase
 import (
 	"Blog-API/internal/domain"
 	"errors"
+	"fmt"
+	"mime/multipart"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -14,15 +16,24 @@ type UserUseCase struct {
 	jwtService      domain.JWTService
 	sessionRepo     domain.SessionRepository
 	emailService    domain.EmailService
+	fileService     domain.FileService
 }
 
-func NewUserUseCase(userRepo domain.UserRepository, passwordService domain.PasswordService, jwtService domain.JWTService, sessionRepo domain.SessionRepository, emailService domain.EmailService) domain.UserUseCase {
+func NewUserUseCase(
+	userRepo domain.UserRepository,
+	passwordService domain.PasswordService,
+	jwtService domain.JWTService,
+	sessionRepo domain.SessionRepository,
+	emailService domain.EmailService,
+	fileService domain.FileService,
+) domain.UserUseCase {
 	return &UserUseCase{
 		userRepo:        userRepo,
 		passwordService: passwordService,
 		jwtService:      jwtService,
 		sessionRepo:     sessionRepo,
 		emailService:    emailService,
+		fileService:     fileService,
 	}
 }
 
@@ -156,13 +167,6 @@ func (u *UserUseCase) UpdateProfile(id primitive.ObjectID, req *domain.UpdatePro
 
 	// Return updated user
 	return u.userRepo.GetByID(id)
-}
-
-func (u *UserUseCase) UpdateRole(id primitive.ObjectID, role string) error {
-	if role != "user" && role != "admin" {
-		return errors.New("invalid role")
-	}
-	return u.userRepo.UpdateRole(id, role)
 }
 
 func (u *UserUseCase) ValidatePassword(password string) error {
@@ -339,4 +343,35 @@ func (u *UserUseCase) ResetPassword(token, newPassword string) error {
 	}
 	session.PasswordResetToken = ""
 	return u.sessionRepo.Update(session)
+}
+
+//Updated the updaterole and added the upload profile picture functions
+
+func (u *UserUseCase) UpdateRole(adminUserID, targetUserID primitive.ObjectID, role string) error {
+	adminUser, err := u.userRepo.GetByID(adminUserID)
+	if err != nil {
+		return errors.New("admin user not found")
+	}
+	if adminUser.Role != domain.RoleAdmin {
+		return errors.New("target user not found")
+	}
+	if adminUserID == targetUserID && role == domain.RoleUser {
+		return errors.New("admins cannot demote themselves")
+	}
+	return u.userRepo.UpdateRole(targetUserID, role)
+}
+func (u *UserUseCase) UploadProfilePicture(userID primitive.ObjectID, file multipart.File, handler *multipart.FileHeader) (*domain.User, error) {
+	// 1. Save the file using the file service interface.
+	photo, err := u.fileService.SaveProfilePicture(userID, file, handler)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save file: %w", err)
+	}
+
+	// 2. Update the user's document in the database.
+	if err := u.userRepo.UpdateProfilePicture(userID, photo); err != nil {
+		return nil, fmt.Errorf("failed to update user profile in database: %w", err)
+	}
+
+	// 3. Return the fully updated user object.
+	return u.userRepo.GetByID(userID)
 }

@@ -2,12 +2,14 @@ package controllers
 
 import (
 	"net/http"
+	"strings"
 
 	"Blog-API/internal/domain"
 	"Blog-API/internal/infrastructure/middleware"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type UserHandler struct {
@@ -167,6 +169,82 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 		"user":    updatedUser,
 	})
 }
+
+// promotion , demotion and profile picture//
+func (h *UserHandler) PromoteUser(c *gin.Context) {
+	adminUserID, _ := middleware.GetUserIDFromContext(c)
+	targetUserID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Invalid target user ID"})
+		return
+	}
+	err = h.userUseCase.UpdateRole(adminUserID, targetUserID, domain.RoleAdmin)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "forbidden") {
+			status = http.StatusForbidden
+		} else if strings.Contains(err.Error(), "not found") {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "User Promoted to admin successfully"})
+}
+func (h *UserHandler) DemoteUser(c *gin.Context) {
+	adminUserID, _ := middleware.GetUserIDFromContext(c)
+	targetUserID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+	err = h.userUseCase.UpdateRole(adminUserID, targetUserID, domain.RoleUser)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "forbidden") {
+			status = http.StatusForbidden
+		} else if strings.Contains(err.Error(), "not found") {
+			status = http.StatusNotFound
+		}
+		c.JSON(status, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Admin demoted to user successfully"})
+}
+func (h *UserHandler) UploadProfilePicture(c *gin.Context) {
+	userID, exists := middleware.GetUserIDFromContext(c)
+	if !exists {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "User not authenticated"})
+		return
+	}
+	file, handler, err := c.Request.FormFile("profile_picture")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "File is required"})
+		return
+	}
+	defer file.Close()
+
+	const maxFileSize = 5 * 1024 * 1024
+	if handler.Size > maxFileSize {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "file size exceeds the limit of 5MB"})
+		return
+	}
+	contentType := handler.Header.Get("Content-Type")
+	if contentType != "image/jpeg" && contentType != "image/png" {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "invalid file type. only JPG and PNG are alowed"})
+		return
+	}
+
+	updatedUser, err := h.userUseCase.UploadProfilePicture(userID, file, handler)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, updatedUser)
+
+}
+
+//promotion, demotion and profile picture//
 
 func (h *UserHandler) VerifyEmail(c *gin.Context) {
 	c.JSON(http.StatusNotImplemented, domain.ErrorResponse{Error: "email verification endpoint not implemented yet"})
