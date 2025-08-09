@@ -19,6 +19,7 @@ type Config struct {
 	Email   EmailConfig
 	Upload  UploadConfig
 	AI      AIConfig
+	Redis   RedisConfig
 }
 
 type ServerConfig struct {
@@ -49,6 +50,11 @@ type EmailConfig struct {
 type UploadConfig struct {
 	Path        string
 	MaxFileSize int64
+}
+type RedisConfig struct {
+	Addr     string `mapstructure:"REDIS_ADDR"`
+	Password string `mapstructure:"REDIS_PASSWORD"`
+	DB       int    `mapstructure:"REDIS_DB"`
 }
 
 func Load() *Config {
@@ -84,6 +90,11 @@ func Load() *Config {
 		},
 		AI: AIConfig{
 			GroqAPIKey: getEnv("GROQ_API_KEY", ""),
+		},
+		Redis: RedisConfig{
+			Addr:     getEnv("REDIS_ADDR", "localhost:6379"),
+			Password: getEnv("REDIS_PASSWORD", ""),
+			DB:       getIntEnv("REDIS_DB", 0),
 		},
 	}
 }

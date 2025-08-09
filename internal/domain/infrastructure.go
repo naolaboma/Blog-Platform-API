@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"errors"
 	"mime/multipart"
 	"net/http"
 	"time"
@@ -9,6 +10,27 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
+
+// Graceful shutdown interfaces
+type Job interface {
+	Run(ctx context.Context) error
+}
+
+type WorkerPool interface {
+	Submit(job Job)
+	Shutdown()
+	Start()
+}
+
+// cache interefaces
+type Cache interface {
+	Get(ctx context.Context, key string, dest interface{}) error
+	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error
+	Delete(ctx context.Context, key string) error
+	DeleteByPattern(ctx context.Context, Pattern string) error
+}
+
+var ErrCacheMiss = errors.New("cache: key not found")
 
 // interface for JWT operations
 type JWTService interface {

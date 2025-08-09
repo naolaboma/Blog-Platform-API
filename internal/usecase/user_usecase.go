@@ -17,6 +17,7 @@ type UserUseCase struct {
 	sessionRepo     domain.SessionRepository
 	emailService    domain.EmailService
 	fileService     domain.FileService
+	workerPool      domain.WorkerPool
 }
 
 func NewUserUseCase(
@@ -26,6 +27,7 @@ func NewUserUseCase(
 	sessionRepo domain.SessionRepository,
 	emailService domain.EmailService,
 	fileService domain.FileService,
+	workerPool domain.WorkerPool,
 ) domain.UserUseCase {
 	return &UserUseCase{
 		userRepo:        userRepo,
@@ -34,6 +36,7 @@ func NewUserUseCase(
 		sessionRepo:     sessionRepo,
 		emailService:    emailService,
 		fileService:     fileService,
+		workerPool:      workerPool,
 	}
 }
 
@@ -286,7 +289,13 @@ func (u *UserUseCase) SendVerificationEmail(email string) error {
 	}
 
 	// send the email in Background
-	go u.emailService.SendVerificationEmail(user.Email, user.Username, verificationToken)
+	u.workerPool.Submit(&EmailJob{
+		EmailService: u.emailService,
+		Type:         "verification",
+		Email:        user.Email,
+		Username:     user.Username,
+		Token:        verificationToken,
+	})
 	return nil
 }
 
@@ -315,7 +324,14 @@ func (u *UserUseCase) SendPasswordResetEmail(email string) error {
 		}
 	}
 
-	go u.emailService.SendPasswordResetEmail(user.Email, user.Username, resetToken)
+	//go u.emailService.SendPasswordResetEmail(user.Email, user.Username, resetToken)
+	u.workerPool.Submit(&EmailJob{
+		EmailService: u.emailService,
+		Type:         "password_reset",
+		Email:        user.Email,
+		Username:     user.Username,
+		Token:        resetToken,
+	})
 	return nil
 }
 
