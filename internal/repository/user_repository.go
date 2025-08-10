@@ -255,3 +255,21 @@ func (r *UserRepository) UpdateProfilePicture(id primitive.ObjectID, photo *doma
 	}
 	return nil
 }
+
+func (r *UserRepository) GetByOAuth(provider, oauthID string) (*domain.User, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	var user domain.User
+	filter := bson.M{
+		"oauth_provider": provider,
+		"oauth_id":       oauthID,
+	}
+	err := r.collection.FindOne(ctx, filter).Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errors.New("user not found")
+		}
+		return nil, err
+	}
+	return &user, nil
+}

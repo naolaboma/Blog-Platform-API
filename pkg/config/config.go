@@ -4,14 +4,12 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
 )
 
-type AIConfig struct {
-	GroqAPIKey string
-}
 type Config struct {
 	Server  ServerConfig
 	MongoDB MongoDBConfig
@@ -20,6 +18,7 @@ type Config struct {
 	Upload  UploadConfig
 	AI      AIConfig
 	Redis   RedisConfig
+	OAuth   OAuthConfig
 }
 
 type ServerConfig struct {
@@ -51,10 +50,24 @@ type UploadConfig struct {
 	Path        string
 	MaxFileSize int64
 }
+type AIConfig struct {
+	GroqAPIKey string
+}
 type RedisConfig struct {
 	Addr     string `mapstructure:"REDIS_ADDR"`
 	Password string `mapstructure:"REDIS_PASSWORD"`
 	DB       int    `mapstructure:"REDIS_DB"`
+}
+type OAuthProvider struct {
+	ClientID     string   `mapstructure:"CLIENT_ID"`
+	ClientSecret string   `mapstructure:"CLIENT_SECRET"`
+	RedirectURL  string   `mapstructure:"REDIRECT_URL"`
+	Scopes       []string `mapstructure:"SCOPES"`
+}
+type OAuthConfig struct {
+	Google      OAuthProvider
+	GitHub      OAuthProvider
+	StateSecret string `mapstructure:"OAUTH_STATE_SECRET"`
 }
 
 func Load() *Config {
@@ -96,6 +109,21 @@ func Load() *Config {
 			Password: getEnv("REDIS_PASSWORD", ""),
 			DB:       getIntEnv("REDIS_DB", 0),
 		},
+		OAuth: OAuthConfig{
+			StateSecret: getEnv("OAUTH_STATE_SECRET", "a-very-secret-string-for-oauth-state-change-me"),
+			Google: OAuthProvider{
+				ClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
+				ClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
+				RedirectURL:  getEnv("GOOGLE_REDIRECT_URL", "http://localhost:8080/api/v1/auth/google/callback"),
+				Scopes:       getScopes("GOOGLE_SCOPES", "https://www.googleapis.com/auth/userinfo.email,https://www.googleapis.com/auth/userinfo.profile"),
+			},
+			GitHub: OAuthProvider{
+				ClientID:     getEnv("GITHUB_CLIENT_ID", ""),
+				ClientSecret: getEnv("GITHUB_CLIENT_SECRET", ""),
+				RedirectURL:  getEnv("GITHUB_REDIRECT_URL", "http://localhost:8080/api/v1/auth/github/callback"),
+				Scopes:       getScopes("GITHUB_SCOPES", "read:user,user:email"),
+			},
+		},
 	}
 }
 
@@ -132,4 +160,8 @@ func getDurationEnv(key string, defaultValue time.Duration) time.Duration {
 		}
 	}
 	return defaultValue
+}
+func getScopes(key, defaultValue string) []string {
+	value := getEnv(key, defaultValue)
+	return strings.Split(value, ",")
 }

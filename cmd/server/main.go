@@ -19,6 +19,7 @@ import (
 	"Blog-API/internal/infrastructure/filesystem"
 	"Blog-API/internal/infrastructure/jwt"
 	"Blog-API/internal/infrastructure/middleware"
+	"Blog-API/internal/infrastructure/oauth"
 	"Blog-API/internal/infrastructure/password"
 	"Blog-API/internal/infrastructure/worker"
 	"Blog-API/internal/repository"
@@ -27,6 +28,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/github"
+	"golang.org/x/oauth2/google"
 )
 
 func main() {
@@ -66,22 +70,40 @@ func main() {
 		baseURL,
 		cfg.Email.TemplatePath,
 	)
+	//---Oauth---
+	googleOAuthConfig := &oauth2.Config{
+		ClientID:     cfg.OAuth.Google.ClientID,
+		ClientSecret: cfg.OAuth.Google.ClientSecret,
+		RedirectURL:  cfg.OAuth.Google.RedirectURL,
+		Scopes:       cfg.OAuth.Google.Scopes,
+		Endpoint:     google.Endpoint,
+	}
+	githubOAuthConfig := &oauth2.Config{
+		ClientID:     cfg.OAuth.GitHub.ClientID,
+		ClientSecret: cfg.OAuth.GitHub.ClientSecret,
+		RedirectURL:  cfg.OAuth.GitHub.RedirectURL,
+		Scopes:       cfg.OAuth.GitHub.Scopes,
+		Endpoint:     github.Endpoint,
+	}
+	oauthService := oauth.NewOAuthService(googleOAuthConfig, githubOAuthConfig)
+	//---Oauth---
 	cacheService := cache.NewRedisCache(redisClient)
 	//---repositories---
 	userRepo := repository.NewUserRepository(mongoDB)
 	blogRepo := repository.NewBlogRepository(mongoDB)
 	sessionRepo := repository.NewSessionRepository(mongoDB)
 	//---use cases---
-	userUseCase := usecase.NewUserUseCase(userRepo, passwordService, jwtService, sessionRepo, emailService, fileService, workerPool)
+	userUseCase := usecase.NewUserUseCase(userRepo, passwordService, jwtService, sessionRepo, emailService, fileService, workerPool, oauthService)
 	blogUseCase := usecase.NewBlogUseCase(blogRepo, userRepo, cacheService)
 	aiUseCase := usecase.NewAIUseCase(aiService)
 	//---handlers---
 	userHandler := controllers.NewUserHandler(userUseCase)
 	blogHandler := controllers.NewBlogHandler(blogUseCase)
 	aiHandler := controllers.NewAIHandler(aiUseCase)
+	oauthHandler := controllers.NewOAuthHandler(userUseCase, oauthService, cfg.OAuth.StateSecret)
 
 	authMiddleware := middleware.NewAuthMiddleware(jwtService, sessionRepo)
-	router := router.SetupRouter(userHandler, blogHandler, aiHandler, authMiddleware)
+	router := router.SetupRouter(userHandler, blogHandler, aiHandler, oauthHandler, authMiddleware)
 
 	//Graceful server shutdown logic S
 

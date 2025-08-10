@@ -9,6 +9,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"golang.org/x/oauth2"
 )
 
 // Graceful shutdown interfaces
@@ -20,6 +21,13 @@ type WorkerPool interface {
 	Submit(job Job)
 	Shutdown()
 	Start()
+}
+
+// OAuth service
+type OAuthService interface {
+	GetAuthURL(provider, state string) (string, error)
+	ExchangeCodeForToken(provider, code string) (*oauth2.Token, error)
+	GetUserInfo(provider string, token *oauth2.Token) (oauthID, email, username string, err error)
 }
 
 // cache interefaces
