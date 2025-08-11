@@ -1,0 +1,679 @@
+{
+  "info": {
+    "name": "Blog API",
+    "_postman_id": "2b1c7e9e-7e3c-4b9c-bf4b-7d02a3f56b9f",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
+    { "key": "authToken", "value": "", "type": "string" },
+    { "key": "refreshToken", "value": "", "type": "string" },
+    { "key": "blogId", "value": "", "type": "string" },
+    { "key": "commentId", "value": "", "type": "string" },
+    { "key": "page", "value": "1", "type": "string" },
+    { "key": "limit", "value": "10", "type": "string" },
+    { "key": "adminTargetUserId", "value": "", "type": "string" },
+    { "key": "code", "value": "", "type": "string" },
+    { "key": "state", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"test@example.com\",\n  \"password\": \"P@ssw0rd!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"P@ssw0rd!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', function () { pm.response.to.have.status(200); });",
+                  "var json = {}; try { json = pm.response.json(); } catch (e) {}",
+                  "if (json && json.access_token) pm.collectionVariables.set('authToken', json.access_token);",
+                  "if (json && json.refresh_token) pm.collectionVariables.set('refreshToken', json.refresh_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "refresh"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) {}",
+                  "if (json && json.access_token) pm.collectionVariables.set('authToken', json.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send Verification Email",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/send-verification",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "send-verification"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Verify Email (GET with token)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/verify-email?token={{token}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "verify-email"],
+              "query": [{ "key": "token", "value": "{{token}}" }]
+            }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/forgot-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "forgot-password"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/reset-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "reset-password"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"<paste_token_here>\",\n  \"new_password\": \"NewP@ssw0rd!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Logout (requires auth)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "logout"]
+            }
+          }
+        },
+        {
+          "name": "OAuth Google Login",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/google/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "google", "login"]
+            }
+          }
+        },
+        {
+          "name": "OAuth Google Callback",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/google/callback?code={{code}}&state={{state}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "google", "callback"],
+              "query": [
+                { "key": "code", "value": "{{code}}" },
+                { "key": "state", "value": "{{state}}" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json={}; try{json=pm.response.json();}catch(e){}",
+                  "if(json && json.access_token) pm.collectionVariables.set('authToken', json.access_token);",
+                  "if(json && json.refresh_token) pm.collectionVariables.set('refreshToken', json.refresh_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OAuth GitHub Login",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/github/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "github", "login"]
+            }
+          }
+        },
+        {
+          "name": "OAuth GitHub Callback",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/github/callback?code={{code}}&state={{state}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "github", "callback"],
+              "query": [
+                { "key": "code", "value": "{{code}}" },
+                { "key": "state", "value": "{{state}}" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json={}; try{json=pm.response.json();}catch(e){}",
+                  "if(json && json.access_token) pm.collectionVariables.set('authToken', json.access_token);",
+                  "if(json && json.refresh_token) pm.collectionVariables.set('refreshToken', json.refresh_token);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users (auth)",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "profile"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"updateduser\",\n  \"email\": \"updated@example.com\",\n  \"bio\": \"About me...\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Upload Profile Picture",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/profile/picture",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "profile", "picture"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "profile_picture", "type": "file", "src": "" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Blogs",
+      "item": [
+        {
+          "name": "List Blogs",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/blogs?page={{page}}&limit={{limit}}&sort=newest",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "blogs"],
+              "query": [
+                { "key": "page", "value": "{{page}}" },
+                { "key": "limit", "value": "{{limit}}" },
+                { "key": "sort", "value": "newest" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) {}",
+                  "if (json && json.data && Array.isArray(json.data) && json.data.length) {",
+                  "  var b = json.data[0];",
+                  "  var id = b.id || b._id;",
+                  "  if (id) pm.collectionVariables.set('blogId', id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Blog by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/blogs/{{blogId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "blogs", "{{blogId}}"]
+            }
+          }
+        },
+        {
+          "name": "Popular Blogs",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/blogs/popular?limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "blogs", "popular"],
+              "query": [{ "key": "limit", "value": "5" }]
+            }
+          }
+        },
+        {
+          "name": "Search by Title",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/blogs/search/title?title=hello&page=1&limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "blogs", "search", "title"],
+              "query": [
+                { "key": "title", "value": "hello" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search by Author",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/blogs/search/author?author=testuser&page=1&limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "blogs", "search", "author"],
+              "query": [
+                { "key": "author", "value": "testuser" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filter by Tags",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/blogs/filter/tags?tags=go,golang&page=1&limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "blogs", "filter", "tags"],
+              "query": [
+                { "key": "tags", "value": "go,golang" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filter by Date",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/blogs/filter/date?startDate=2025-01-01&endDate=2025-12-31&page=1&limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "blogs", "filter", "date"],
+              "query": [
+                { "key": "startDate", "value": "2025-01-01" },
+                { "key": "endDate", "value": "2025-12-31" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Blog (auth)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/blogs/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "blogs", ""]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Hello World\",\n  \"content\": \"This is a blog post body...\",\n  \"tags\": [\"go\", \"gin\"]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) {}",
+                  "if (json && json.blog && (json.blog.id || json.blog._id)) {",
+                  "  pm.collectionVariables.set('blogId', json.blog.id || json.blog._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Blog (auth)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/blogs/{{blogId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "blogs", "{{blogId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Title\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Blog (auth)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/blogs/{{blogId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "blogs", "{{blogId}}"]
+            }
+          }
+        },
+        {
+          "name": "Add Comment (auth)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/blogs/{{blogId}}/comments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "blogs", "{{blogId}}", "comments"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Nice post!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = {}; try { json = pm.response.json(); } catch (e) {}",
+                  "if (json && json.comment && (json.comment.id || json.comment._id)) {",
+                  "  pm.collectionVariables.set('commentId', json.comment.id || json.comment._id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Comment (auth)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/blogs/{{blogId}}/comments/{{commentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "api",
+                "v1",
+                "blogs",
+                "{{blogId}}",
+                "comments",
+                "{{commentId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Edited comment\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Comment (auth)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/blogs/{{blogId}}/comments/{{commentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "api",
+                "v1",
+                "blogs",
+                "{{blogId}}",
+                "comments",
+                "{{commentId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Like Blog (auth)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/blogs/{{blogId}}/like",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "blogs", "{{blogId}}", "like"]
+            }
+          }
+        },
+        {
+          "name": "Dislike Blog (auth)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/blogs/{{blogId}}/dislike",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "blogs", "{{blogId}}", "dislike"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI (auth)",
+      "item": [
+        {
+          "name": "Generate Blog",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/generate-blog",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai", "generate-blog"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"Generate a Go tutorial outline\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Enhance Blog",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/enhance-blog",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai", "enhance-blog"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Current content...\",\n  \"instructions\": \"Make it concise\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Suggest Blog Ideas",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ai/suggest-ideas",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "ai", "suggest-ideas"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topic\": \"Go microservices\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin (auth)",
+      "item": [
+        {
+          "name": "Promote User",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users/{{adminTargetUserId}}/promote",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users",
+                "{{adminTargetUserId}}",
+                "promote"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Demote User",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users/{{adminTargetUserId}}/demote",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "users",
+                "{{adminTargetUserId}}",
+                "demote"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

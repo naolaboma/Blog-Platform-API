@@ -30,8 +30,12 @@ func (h *OAuthHandler) OAuthLogin(c *gin.Context) {
 	b := make([]byte, 16)
 	rand.Read(b)
 	state := hex.EncodeToString(b)
-	//set state in a secure httponly cookie
-	c.SetCookie("oauthstate", state, int(10*time.Minute.Seconds()), "/", "localhost", true, true)
+
+	// Decide cookie security based on Gin mode: non-release => not Secure for localhost HTTP
+	secure := gin.Mode() == gin.ReleaseMode
+
+	//set state in a secure httponly cookie (Secure=false on localhost in dev)
+	c.SetCookie("oauthstate", state, int(10*time.Minute.Seconds()), "/", "localhost", secure, true)
 
 	// get the redirect url from the service
 	url, err := h.oauthService.GetAuthURL(provider, state)
@@ -52,8 +56,10 @@ func (h *OAuthHandler) OAuthCallback(c *gin.Context) {
 		return
 	}
 	queryState := c.Query("state")
-	// clear the cookie immidiately
-	c.SetCookie("oauthstate", "", -1, "/", "localhost", true, true)
+
+	// Clear cookie using the same Secure decision
+	secure := gin.Mode() == gin.ReleaseMode
+	c.SetCookie("oauthstate", "", -1, "/", "localhost", secure, true)
 
 	//get the authorization code
 	code := c.Query("code")
