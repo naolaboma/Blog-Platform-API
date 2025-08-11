@@ -227,14 +227,48 @@ func (r *UserRepository) UploadProfilePicture(id primitive.ObjectID, photo *doma
 	return err
 }
 
+// email verification and update email verif status
 func (r *UserRepository) VerifyEmail(id primitive.ObjectID) error {
-	return errors.New("email verification not implemented yet")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	update := bson.M{
+		"$set": bson.M{
+			"email_verified": true,
+			"updated_at":     time.Now(),
+		},
+	}
+	res, err := r.collection.UpdateOne(ctx, bson.M{"_id": id}, update)
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return errors.New("user not found")
+	}
+	return nil
 }
 
 func (r *UserRepository) UpdateEmailVerificationStatus(id primitive.ObjectID, verified bool) error {
-	return errors.New("email verification status update not implemented yet")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	update := bson.M{
+		"$set": bson.M{
+			"email_verified": verified,
+			"updated_at":     time.Now(),
+		},
+	}
+	res, err := r.collection.UpdateOne(ctx, bson.M{"_id": id}, update)
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return errors.New("user not found")
+	}
+	return nil
 }
 
+// profile updation
 func (r *UserRepository) UpdateProfilePicture(id primitive.ObjectID, photo *domain.Photo) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

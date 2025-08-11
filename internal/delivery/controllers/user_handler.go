@@ -247,17 +247,94 @@ func (h *UserHandler) UploadProfilePicture(c *gin.Context) {
 //promotion, demotion and profile picture//
 
 func (h *UserHandler) VerifyEmail(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, domain.ErrorResponse{Error: "email verification endpoint not implemented yet"})
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "token is required"})
+		return
+	}
+
+	if err := h.userUseCase.VerifyEmail(token); err != nil {
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "invalid or expired") {
+			status = http.StatusBadRequest
+		}
+		c.JSON(status, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Email verified successfully"})
 }
 
 func (h *UserHandler) SendVerificationEmail(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, domain.ErrorResponse{Error: "send verification email endpoint not implemented yet"})
+	var req struct {
+		Email string `json:"email" validate:"required,email"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Invalid request data: " + err.Error()})
+		return
+	}
+	if err := h.validate.Struct(req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Validation failed: " + err.Error()})
+		return
+	}
+
+	if err := h.userUseCase.SendVerificationEmail(req.Email); err != nil {
+		// Return a generic response to avoid email enumeration
+		if strings.Contains(err.Error(), "verification email has been sent") || strings.Contains(err.Error(), "already verified") {
+			c.JSON(http.StatusOK, domain.EmailVerificationResponse{Message: "If an account exists for this email, a verification email has been sent."})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, domain.EmailVerificationResponse{Message: "If an account exists for this email, a verification email has been sent."})
 }
 
 func (h *UserHandler) SendPasswordResetEmail(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, domain.ErrorResponse{Error: "send password reset email endpoint not implemented yet"})
+	var req domain.PasswordResetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Invalid request data: " + err.Error()})
+		return
+	}
+	if err := h.validate.Struct(req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Validation failed: " + err.Error()})
+		return
+	}
+
+	if err := h.userUseCase.SendPasswordResetEmail(req.Email); err != nil {
+		// Generic response to avoid email enumeration
+		if strings.Contains(err.Error(), "password reset email has been sent") {
+			c.JSON(http.StatusOK, domain.PasswordResetResponse{Message: "If an account exists for this email, a password reset email has been sent."})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, domain.PasswordResetResponse{Message: "If an account exists for this email, a password reset email has been sent."})
 }
 
 func (h *UserHandler) ResetPassword(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, domain.ErrorResponse{Error: "password reset endpoint not implemented yet"})
+	var req domain.NewPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Invalid request data: " + err.Error()})
+		return
+	}
+	if err := h.validate.Struct(req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Validation failed: " + err.Error()})
+		return
+	}
+
+	if err := h.userUseCase.ResetPassword(req.Token, req.NewPassword); err != nil {
+		status := http.StatusInternalServerError
+		if strings.Contains(err.Error(), "invalid or expired") || strings.Contains(err.Error(), "password must") {
+			status = http.StatusBadRequest
+		}
+		c.JSON(status, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, domain.NewPasswordResponse{Message: "Password reset successful"})
 }

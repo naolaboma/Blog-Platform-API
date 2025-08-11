@@ -35,7 +35,7 @@ import (
 
 func main() {
 	cfg := config.Load()
-	log.Printf("!!! DEBUG !!! Loaded Groq API Key: [%s]", cfg.AI.GroqAPIKey)
+	log.Printf("Groq AI configured")
 
 	gin.SetMode(cfg.Server.GinMode)
 

@@ -181,9 +181,31 @@ func (r *SessionRepository) UpdateLastActivity(id primitive.ObjectID) error {
 }
 
 func (r *SessionRepository) GetByVerificationToken(token string) (*domain.Session, error) {
-	return nil, errors.New("get session by verification token not implemented yet")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var session domain.Session
+	err := r.collection.FindOne(ctx, bson.M{"verification_token": token}).Decode(&session)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errors.New("session not found")
+		}
+		return nil, err
+	}
+	return &session, nil
 }
 
 func (r *SessionRepository) GetByResetToken(token string) (*domain.Session, error) {
-	return nil, errors.New("get session by reset token not implemented yet")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var session domain.Session
+	err := r.collection.FindOne(ctx, bson.M{"password_reset_token": token}).Decode(&session)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, errors.New("session not found")
+		}
+		return nil, err
+	}
+	return &session, nil
 }

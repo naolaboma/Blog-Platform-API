@@ -232,7 +232,7 @@ func (br *BlogRepo) FilterByDate(startDate, endDate time.Time, page, limit int) 
 
 	filter := bson.M{
 		"created_at": bson.M{
-			"$gre": startDate,
+			"$gte": startDate,
 			"$lte": endDate,
 		},
 	}
