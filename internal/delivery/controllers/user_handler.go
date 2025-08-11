@@ -169,17 +169,87 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 }
 
 func (h *UserHandler) VerifyEmail(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, domain.ErrorResponse{Error: "email verification endpoint not implemented yet"})
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Verification token is required"})
+		return
+	}
+
+	if err := h.userUseCase.VerifyEmail(token); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Email verified successfully! You can now login.",
+	})
 }
 
 func (h *UserHandler) SendVerificationEmail(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, domain.ErrorResponse{Error: "send verification email endpoint not implemented yet"})
+	var req domain.PasswordResetRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Invalid request data: " + err.Error()})
+		return
+	}
+
+	if err := h.validate.Struct(req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Validation failed: " + err.Error()})
+		return
+	}
+
+	if err := h.userUseCase.SendVerificationEmail(req.Email); err != nil {
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Verification email sent successfully. Please check your email.",
+	})
 }
 
 func (h *UserHandler) SendPasswordResetEmail(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, domain.ErrorResponse{Error: "send password reset email endpoint not implemented yet"})
+	var req domain.PasswordResetRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Invalid request data: " + err.Error()})
+		return
+	}
+
+	if err := h.validate.Struct(req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Validation failed: " + err.Error()})
+		return
+	}
+
+	if err := h.userUseCase.SendPasswordResetEmail(req.Email); err != nil {
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Password reset email sent successfully. Please check your email.",
+	})
 }
 
 func (h *UserHandler) ResetPassword(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, domain.ErrorResponse{Error: "password reset endpoint not implemented yet"})
+	var req domain.NewPasswordRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Invalid request data: " + err.Error()})
+		return
+	}
+
+	if err := h.validate.Struct(req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "Validation failed: " + err.Error()})
+		return
+	}
+
+	if err := h.userUseCase.ResetPassword(req.Token, req.NewPassword); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Password reset successfully! You can now login with your new password.",
+	})
 }
