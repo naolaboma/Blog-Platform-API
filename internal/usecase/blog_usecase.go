@@ -85,7 +85,7 @@ func (uc *blogUseCase) GetAllBlogs(page, limit int, sort string) ([]*domain.Blog
 		Total int64
 	}
 	if err := uc.cache.Get(ctx, key, &cachedResult); err == nil {
-		log.Println("CACHE HIT: GetAllBlog")
+		log.Println("CACHE HIT: GetAllBlogs")
 		return cachedResult.Blogs, cachedResult.Total, nil
 	}
 	log.Println("CACHE MISS: GetAllBlogs")

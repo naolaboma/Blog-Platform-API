@@ -21,10 +21,7 @@
     { "key": "blogId", "value": "", "type": "string" },
     { "key": "commentId", "value": "", "type": "string" },
     { "key": "page", "value": "1", "type": "string" },
-    { "key": "limit", "value": "10", "type": "string" },
-    { "key": "adminTargetUserId", "value": "", "type": "string" },
-    { "key": "code", "value": "", "type": "string" },
-    { "key": "state", "value": "", "type": "string" }
+    { "key": "limit", "value": "10", "type": "string" }
   ],
   "item": [
     {
@@ -174,84 +171,6 @@
               "path": ["api", "v1", "auth", "logout"]
             }
           }
-        },
-        {
-          "name": "OAuth Google Login",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/google/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "google", "login"]
-            }
-          }
-        },
-        {
-          "name": "OAuth Google Callback",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/google/callback?code={{code}}&state={{state}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "google", "callback"],
-              "query": [
-                { "key": "code", "value": "{{code}}" },
-                { "key": "state", "value": "{{state}}" }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "var json={}; try{json=pm.response.json();}catch(e){}",
-                  "if(json && json.access_token) pm.collectionVariables.set('authToken', json.access_token);",
-                  "if(json && json.refresh_token) pm.collectionVariables.set('refreshToken', json.refresh_token);"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "OAuth GitHub Login",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/github/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "github", "login"]
-            }
-          }
-        },
-        {
-          "name": "OAuth GitHub Callback",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/github/callback?code={{code}}&state={{state}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "auth", "github", "callback"],
-              "query": [
-                { "key": "code", "value": "{{code}}" },
-                { "key": "state", "value": "{{state}}" }
-              ]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "var json={}; try{json=pm.response.json();}catch(e){}",
-                  "if(json && json.access_token) pm.collectionVariables.set('authToken', json.access_token);",
-                  "if(json && json.refresh_token) pm.collectionVariables.set('refreshToken', json.refresh_token);"
-                ]
-              }
-            }
-          ]
         }
       ]
     },
@@ -282,23 +201,6 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"username\": \"updateduser\",\n  \"email\": \"updated@example.com\",\n  \"bio\": \"About me...\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Upload Profile Picture",
-          "request": {
-            "method": "POST",
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/users/profile/picture",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "users", "profile", "picture"]
-            },
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                { "key": "profile_picture", "type": "file", "src": "" }
-              ]
             }
           }
         }
@@ -627,49 +529,6 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"topic\": \"Go microservices\"\n}"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Admin (auth)",
-      "item": [
-        {
-          "name": "Promote User",
-          "request": {
-            "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/admin/users/{{adminTargetUserId}}/promote",
-              "host": ["{{baseUrl}}"],
-              "path": [
-                "api",
-                "v1",
-                "admin",
-                "users",
-                "{{adminTargetUserId}}",
-                "promote"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Demote User",
-          "request": {
-            "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/admin/users/{{adminTargetUserId}}/demote",
-              "host": ["{{baseUrl}}"],
-              "path": [
-                "api",
-                "v1",
-                "admin",
-                "users",
-                "{{adminTargetUserId}}",
-                "demote"
-              ]
             }
           }
         }
