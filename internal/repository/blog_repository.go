@@ -381,5 +381,5 @@ func (br *BlogRepo) RemoveDislike(blogID primitive.ObjectID, userID string) erro
 }
 
 func (br *BlogRepo) GetTagIDByName(name string) (primitive.ObjectID, error) {
-	return primitive.NilObjectID, nil
+	return primitive.NilObjectID, errors.New("not implemented")
 }
