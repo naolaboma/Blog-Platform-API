@@ -20,7 +20,11 @@ func SetupRouter(userHandler *controllers.UserHandler, blogHandler *controllers.
 			auth.POST("/login", userHandler.Login)
 			auth.POST("/refresh", userHandler.RefreshToken)
 		}
-
+		// Email and Password routes
+		auth.POST("/send-verification", userHandler.SendVerificationEmail)
+		auth.GET("/verify-email", userHandler.VerifyEmail)
+		auth.POST("/forgot-password", userHandler.SendPasswordResetEmail)
+		auth.POST("/reset-password", userHandler.ResetPassword)
 		// protected auth routes
 		authProtected := v1.Group("/auth")
 		authProtected.Use(authMiddleware.AuthRequired())
