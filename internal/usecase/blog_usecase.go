@@ -166,17 +166,24 @@ func (uc *blogUseCase) LikeBlog(blogID primitive.ObjectID, userID string) error 
 	isLiked := containsString(blog.Likes, userID)
 	isDisliked := containsString(blog.Dislikes, userID)
 
+	var err2 error
 	if isLiked {
-		return uc.blogRepo.RemoveLike(blogID, userID)
-	}
-
-	if isDisliked {
+		err2 = uc.blogRepo.RemoveLike(blogID, userID)
+	} else if isDisliked {
 		if err := uc.blogRepo.RemoveDislike(blogID, userID); err != nil {
 			return err
 		}
+		err2 = uc.blogRepo.AddLike(blogID, userID)
+	} else {
+		err2 = uc.blogRepo.AddLike(blogID, userID)
 	}
 
-	return uc.blogRepo.AddLike(blogID, userID)
+	// Invalidate cache for this specific blog
+	if err2 == nil {
+		go uc.cache.Delete(context.Background(), fmt.Sprintf("blog:%s", blogID.Hex()))
+	}
+
+	return err2
 }
 
 func (uc *blogUseCase) DislikeBlog(blogID primitive.ObjectID, userID string) error {
@@ -187,15 +194,24 @@ func (uc *blogUseCase) DislikeBlog(blogID primitive.ObjectID, userID string) err
 	isLiked := containsString(blog.Likes, userID)
 	isDisliked := containsString(blog.Dislikes, userID)
 
+	var err2 error
 	if isDisliked {
-		return uc.blogRepo.RemoveDislike(blogID, userID)
-	}
-	if isLiked {
+		err2 = uc.blogRepo.RemoveDislike(blogID, userID)
+	} else if isLiked {
 		if err := uc.blogRepo.RemoveLike(blogID, userID); err != nil {
 			return err
 		}
+		err2 = uc.blogRepo.AddDislike(blogID, userID)
+	} else {
+		err2 = uc.blogRepo.AddDislike(blogID, userID)
 	}
-	return uc.blogRepo.AddDislike(blogID, userID)
+
+	// Invalidate cache for this specific blog
+	if err2 == nil {
+		go uc.cache.Delete(context.Background(), fmt.Sprintf("blog:%s", blogID.Hex()))
+	}
+
+	return err2
 }
 
 func (uc *blogUseCase) SearchBlogsByTitle(title string, page, limit int) ([]*domain.Blog, int64, error) {

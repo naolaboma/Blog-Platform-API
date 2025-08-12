@@ -363,6 +363,7 @@ func (br *BlogRepo) AddDislike(blogID primitive.ObjectID, userID string) error {
 	filter := bson.M{"_id": blogID}
 	update := bson.M{
 		"$addToSet": bson.M{"dislikes": userID},
+		"$inc":      bson.M{"dislike_count": 1},
 	}
 	_, err := br.collection.UpdateOne(ctx, filter, update)
 	return err
@@ -375,6 +376,7 @@ func (br *BlogRepo) RemoveDislike(blogID primitive.ObjectID, userID string) erro
 	filter := bson.M{"_id": blogID}
 	update := bson.M{
 		"$pull": bson.M{"dislikes": userID},
+		"$inc":  bson.M{"dislike_count": -1},
 	}
 	_, err := br.collection.UpdateOne(ctx, filter, update)
 	return err

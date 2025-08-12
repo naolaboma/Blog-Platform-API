@@ -483,12 +483,12 @@ func (h *BlogHandler) UpdateComment(c *gin.Context) {
 }
 
 func (h *BlogHandler) LikeBlog(c *gin.Context) {
-	userIDPbj, exists := middleware.GetUserIDFromContext(c)
+	userIDObj, exists := middleware.GetUserIDFromContext(c)
 	if !exists {
-		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: "User not authenticated"})
+		c.JSON(http.StatusUnauthorized, domain.ErrorResponse{Error: "User not authenticated"})
 		return
 	}
-	userIDStr := userIDPbj.Hex()
+	userIDStr := userIDObj.Hex()
 
 	blogID, err := primitive.ObjectIDFromHex(c.Param("id"))
 	if err != nil {
