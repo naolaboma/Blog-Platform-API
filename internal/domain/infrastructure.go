@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"mime/multipart"
 	"net/http"
 	"time"
 
@@ -24,6 +25,10 @@ type JWTClaims struct {
 	Role   string             `json:"role"`
 	Exp    int64              `json:"exp"`
 	Iat    int64              `json:"iat"`
+}
+type FileService interface {
+	SaveProfilePicture(userID primitive.ObjectID, file multipart.File, handler *multipart.FileHeader) (*Photo, error)
+	// You could add other methods here later, like DeleteFile(filePath string) error
 }
 
 // returns the expiration time
@@ -66,7 +71,7 @@ type AuthMiddleware interface {
 
 // interface for email operations
 type EmailService interface {
-	SendPasswordResetEmail(email, token string) error
+	SendPasswordResetEmail(email, username, token string) error
 	SendWelcomeEmail(email, username string) error
 	SendVerificationEmail(email, username, token string) error
 }

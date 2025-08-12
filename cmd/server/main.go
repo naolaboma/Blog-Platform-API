@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -8,6 +9,8 @@ import (
 	"Blog-API/internal/delivery/router"
 	"Blog-API/internal/infrastructure/ai"
 	"Blog-API/internal/infrastructure/database"
+	"Blog-API/internal/infrastructure/email"
+	"Blog-API/internal/infrastructure/filesystem"
 	"Blog-API/internal/infrastructure/jwt"
 	"Blog-API/internal/infrastructure/middleware"
 	"Blog-API/internal/infrastructure/password"
@@ -20,6 +23,7 @@ import (
 
 func main() {
 	cfg := config.Load()
+	log.Printf("!!! DEBUG !!! Loaded Groq API Key: [%s]", cfg.AI.GroqAPIKey)
 
 	gin.SetMode(cfg.Server.GinMode)
 
@@ -31,13 +35,23 @@ func main() {
 
 	passwordService := password.NewPasswordService()
 	jwtService := jwt.NewJWTService(cfg.JWT.Secret, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
-	aiService := ai.NewAIService()
+	aiService := ai.NewAIService(cfg.AI.GroqAPIKey)
+	baseURL := fmt.Sprintf("http://localhost:%s", cfg.Server.Port)
+	fileService := filesystem.NewFileService(cfg.Upload.Path)
+	emailService := email.NewEmailService(
+		cfg.Email.Username,
+		cfg.Email.Password,
+		cfg.Email.Host,
+		cfg.Email.Port,
+		baseURL,
+		cfg.Email.TemplatePath,
+	)
 
 	userRepo := repository.NewUserRepository(mongoDB)
 	blogRepo := repository.NewBlogRepository(mongoDB)
 	sessionRepo := repository.NewSessionRepository(mongoDB)
 
-	userUseCase := usecase.NewUserUseCase(userRepo, passwordService, jwtService, sessionRepo)
+	userUseCase := usecase.NewUserUseCase(userRepo, passwordService, jwtService, sessionRepo, emailService, fileService)
 	blogUseCase := usecase.NewBlogUseCase(blogRepo, userRepo)
 	aiUseCase := usecase.NewAIUseCase(aiService)
 

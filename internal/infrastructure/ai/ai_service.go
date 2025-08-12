@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 )
 
 type AIService struct {
@@ -32,8 +31,8 @@ type Choice struct {
 	Message Message `json:"message"`
 }
 
-func NewAIService() *AIService {
-	apiKey := os.Getenv("GROQ_API_KEY")
+func NewAIService(apiKey string) *AIService {
+	//apiKey := os.Getenv("GROQ_API_KEY")
 	// if apiKey == "" {
 	// 	apiKey = os.Getenv("")
 	// }

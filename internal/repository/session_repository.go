@@ -8,6 +8,7 @@ import (
 
 	"Blog-API/internal/domain"
 	"Blog-API/internal/infrastructure/database"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -21,20 +22,20 @@ type SessionRepository struct {
 
 func NewSessionRepository(db *database.MongoDB) domain.SessionRepository {
 	collection := db.GetCollection("sessions")
-	
+
 	indexModels := []mongo.IndexModel{
 		{
 			Keys:    bson.D{{Key: "user_id", Value: 1}},
 			Options: options.Index().SetUnique(true),
 		},
 		{
-			Keys:    bson.D{{Key: "username", Value: 1}},
+			Keys: bson.D{{Key: "username", Value: 1}},
 		},
 		{
-			Keys:    bson.D{{Key: "expires_at", Value: 1}},
+			Keys: bson.D{{Key: "expires_at", Value: 1}},
 		},
 	}
-	
+
 	_, err := collection.Indexes().CreateMany(context.Background(), indexModels)
 	if err != nil {
 		// Log error but don't fail - indexes might already exist
@@ -42,7 +43,7 @@ func NewSessionRepository(db *database.MongoDB) domain.SessionRepository {
 	} else {
 		fmt.Printf("DEBUG: Session indexes created successfully\n")
 	}
-	
+
 	return &SessionRepository{
 		db:         db,
 		collection: collection,
@@ -177,4 +178,12 @@ func (r *SessionRepository) UpdateLastActivity(id primitive.ObjectID) error {
 		bson.M{"$set": bson.M{"last_activity": time.Now()}},
 	)
 	return err
-} 
+}
+
+func (r *SessionRepository) GetByVerificationToken(token string) (*domain.Session, error) {
+	return nil, errors.New("get session by verification token not implemented yet")
+}
+
+func (r *SessionRepository) GetByResetToken(token string) (*domain.Session, error) {
+	return nil, errors.New("get session by reset token not implemented yet")
+}

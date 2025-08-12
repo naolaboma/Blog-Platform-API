@@ -19,8 +19,12 @@ func SetupRouter(userHandler *controllers.UserHandler, blogHandler *controllers.
 			auth.POST("/register", userHandler.Register)
 			auth.POST("/login", userHandler.Login)
 			auth.POST("/refresh", userHandler.RefreshToken)
+			// Email and Password routes
+			auth.POST("/send-verification", userHandler.SendVerificationEmail)
+			auth.GET("/verify-email", userHandler.VerifyEmail)
+			auth.POST("/forgot-password", userHandler.SendPasswordResetEmail)
+			auth.POST("/reset-password", userHandler.ResetPassword)
 		}
-
 		// protected auth routes
 		authProtected := v1.Group("/auth")
 		authProtected.Use(authMiddleware.AuthRequired())
@@ -34,6 +38,14 @@ func SetupRouter(userHandler *controllers.UserHandler, blogHandler *controllers.
 		{
 			users.GET("/profile", userHandler.GetProfile)
 			users.PUT("/profile", userHandler.UpdateProfile)
+			users.POST("/profile/picture", userHandler.UploadProfilePicture)
+		}
+		// admin only routes
+		admin := v1.Group("/admin")
+		admin.Use(authMiddleware.AuthRequired(), authMiddleware.AdminRequired())
+		{
+			admin.PUT("/users/:id/promote", userHandler.PromoteUser)
+			admin.PUT("/users/:id/demote", userHandler.DemoteUser)
 		}
 		// blog routes
 		blogs := v1.Group("/blogs")
