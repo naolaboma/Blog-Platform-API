@@ -392,40 +392,6 @@ go test ./internal/usecase
 5. **Monitoring**: Implement logging, metrics, and health checks
 6. **Scaling**: Consider horizontal scaling with load balancers
 
-### Docker Deployment
-
-1. Build the Docker image:
-```bash
-docker build -t blog-api .
-```
-
-2. Run the container:
-```bash
-docker run -p 8080:8080 --env-file .env blog-api
-```
-
-### Systemd Service
-
-Create a systemd service file for production deployment:
-
-```ini
-[Unit]
-Description=Blog API Service
-After=network.target
-
-[Service]
-Type=simple
-User=blogapi
-WorkingDirectory=/opt/blog-api
-ExecStart=/opt/blog-api/blog-api
-Restart=always
-RestartSec=5
-EnvironmentFile=/opt/blog-api/.env
-
-[Install]
-WantedBy=multi-user.target
-```
-
 ### Development Guidelines
 
 - Follow Go coding standards and conventions
