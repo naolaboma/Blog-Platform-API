@@ -1,6 +1,7 @@
 {
   "info": {
     "name": "Blog API",
+    "description": "Complete API collection for the Blog platform. Includes authentication, user management, blog operations, and AI-powered features.",
     "_postman_id": "2b1c7e9e-7e3c-4b9c-bf4b-7d02a3f56b9f",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
@@ -14,21 +15,45 @@
       }
     ]
   },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-set Authorization header for authenticated requests",
+          "if (pm.collectionVariables.get('authToken')) {",
+          "  pm.request.headers.add({",
+          "    key: 'Authorization',",
+          "    value: 'Bearer ' + pm.collectionVariables.get('authToken')",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
     { "key": "authToken", "value": "", "type": "string" },
     { "key": "refreshToken", "value": "", "type": "string" },
     { "key": "blogId", "value": "", "type": "string" },
     { "key": "commentId", "value": "", "type": "string" },
+    { "key": "userId", "value": "", "type": "string" },
+    { "key": "provider", "value": "google", "type": "string" },
+    { "key": "code", "value": "", "type": "string" },
+    { "key": "state", "value": "", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
     { "key": "page", "value": "1", "type": "string" },
     { "key": "limit", "value": "10", "type": "string" }
   ],
   "item": [
     {
-      "name": "Auth",
+      "name": "Authentication",
+      "description": "User authentication and authorization endpoints including registration, login, token refresh, email verification, and password management.",
       "item": [
         {
           "name": "Register",
+          "description": "Create a new user account with username, email, and password.",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -45,6 +70,7 @@
         },
         {
           "name": "Login",
+          "description": "Authenticate user and receive access and refresh tokens.",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -75,6 +101,7 @@
         },
         {
           "name": "Refresh Token",
+          "description": "Get new access token using refresh token.",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -103,6 +130,7 @@
         },
         {
           "name": "Send Verification Email",
+          "description": "Request email verification for account activation.",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -118,7 +146,8 @@
           }
         },
         {
-          "name": "Verify Email (GET with token)",
+          "name": "Verify Email",
+          "description": "Verify email address using token from verification email.",
           "request": {
             "method": "GET",
             "url": {
@@ -131,6 +160,7 @@
         },
         {
           "name": "Forgot Password",
+          "description": "Request password reset email.",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -147,6 +177,7 @@
         },
         {
           "name": "Reset Password",
+          "description": "Reset password using token from reset email.",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -162,7 +193,8 @@
           }
         },
         {
-          "name": "Logout (requires auth)",
+          "name": "Logout",
+          "description": "Logout user and invalidate current session (requires authentication).",
           "request": {
             "method": "POST",
             "url": {
@@ -171,14 +203,44 @@
               "path": ["api", "v1", "auth", "logout"]
             }
           }
+        },
+        {
+          "name": "OAuth Login",
+          "description": "Initiate OAuth login flow with specified provider (Google, GitHub, etc.).",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/{{provider}}/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "{{provider}}", "login"]
+            }
+          }
+        },
+        {
+          "name": "OAuth Callback",
+          "description": "Handle OAuth callback from provider after successful authentication.",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/{{provider}}/callback?code={{code}}&state={{state}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "{{provider}}", "callback"],
+              "query": [
+                { "key": "code", "value": "{{code}}" },
+                { "key": "state", "value": "{{state}}" }
+              ]
+            }
+          }
         }
       ]
     },
     {
-      "name": "Users (auth)",
+      "name": "User Management",
+      "description": "User profile management, profile picture upload, and account operations.",
       "item": [
         {
           "name": "Get Profile",
+          "description": "Retrieve current user's profile information (requires authentication).",
           "request": {
             "method": "GET",
             "url": {
@@ -190,6 +252,7 @@
         },
         {
           "name": "Update Profile",
+          "description": "Update user profile information (requires authentication).",
           "request": {
             "method": "PUT",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -203,14 +266,69 @@
               "raw": "{\n  \"username\": \"updateduser\",\n  \"email\": \"updated@example.com\",\n  \"bio\": \"About me...\"\n}"
             }
           }
+        },
+        {
+          "name": "Upload Profile Picture",
+          "description": "Upload profile picture (JPG/PNG, max 5MB, requires authentication).",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/profile/picture",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "profile", "picture"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "profile_picture",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          }
         }
       ]
     },
     {
-      "name": "Blogs",
+      "name": "Admin Operations",
+      "description": "Administrative functions for user role management (admin only).",
+      "item": [
+        {
+          "name": "Promote User to Admin",
+          "description": "Promote a user to admin role (admin only).",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users/{{userId}}/promote",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "users", "{{userId}}", "promote"]
+            }
+          }
+        },
+        {
+          "name": "Demote Admin to User",
+          "description": "Demote an admin user to regular user role (admin only).",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/users/{{userId}}/demote",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "users", "{{userId}}", "demote"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Blog Management",
+      "description": "Complete blog CRUD operations, search, filtering, comments, and reactions.",
       "item": [
         {
           "name": "List Blogs",
+          "description": "Get paginated list of all blogs with sorting options.",
           "request": {
             "method": "GET",
             "url": {
@@ -243,6 +361,7 @@
         },
         {
           "name": "Get Blog by ID",
+          "description": "Retrieve a specific blog by its ID.",
           "request": {
             "method": "GET",
             "url": {
@@ -254,6 +373,7 @@
         },
         {
           "name": "Popular Blogs",
+          "description": "Get list of most popular blogs based on engagement.",
           "request": {
             "method": "GET",
             "url": {
@@ -330,7 +450,8 @@
           }
         },
         {
-          "name": "Create Blog (auth)",
+          "name": "Create Blog",
+          "description": "Create a new blog post (requires authentication).",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -360,7 +481,8 @@
           ]
         },
         {
-          "name": "Update Blog (auth)",
+          "name": "Update Blog",
+          "description": "Update an existing blog post (requires authentication, author or admin only).",
           "request": {
             "method": "PUT",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -376,7 +498,8 @@
           }
         },
         {
-          "name": "Delete Blog (auth)",
+          "name": "Delete Blog",
+          "description": "Delete a blog post (requires authentication, author or admin only).",
           "request": {
             "method": "DELETE",
             "url": {
@@ -482,10 +605,12 @@
       ]
     },
     {
-      "name": "AI (auth)",
+      "name": "AI Features",
+      "description": "AI-powered blog generation, enhancement, and idea suggestions.",
       "item": [
         {
           "name": "Generate Blog",
+          "description": "Generate blog content using AI based on a topic (requires authentication).",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -496,12 +621,13 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"prompt\": \"Generate a Go tutorial outline\"\n}"
+              "raw": "{\n  \"topic\": \"Generate a Go tutorial outline\"\n}"
             }
           }
         },
         {
           "name": "Enhance Blog",
+          "description": "Get AI suggestions to improve existing blog content (requires authentication).",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -512,12 +638,13 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"content\": \"Current content...\",\n  \"instructions\": \"Make it concise\"\n}"
+              "raw": "{\n  \"content\": \"Current content that needs enhancement. This should be at least 50 characters long to meet the validation requirements.\"\n}"
             }
           }
         },
         {
           "name": "Suggest Blog Ideas",
+          "description": "Get AI-generated blog topic suggestions based on keywords (requires authentication).",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -528,7 +655,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"topic\": \"Go microservices\"\n}"
+              "raw": "{\n  \"keywords\": [\"go\", \"microservices\", \"tutorial\"]\n}"
             }
           }
         }
