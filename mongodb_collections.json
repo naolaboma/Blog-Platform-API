@@ -9,6 +9,7 @@
         "email": "String (unique, required)",
         "password": "String (hashed, required)",
         "role": "String (enum: 'user', 'admin', default: 'user')",
+        "email_verified": "Boolean (default: false)",
         "profile_picture": {
           "filename": "String",
           "file_path": "String",
@@ -16,6 +17,8 @@
           "uploaded_at": "Date"
         },
         "bio": "String",
+        "oauth_provider": "String (optional)",
+        "oauth_id": "String (optional)",
         "created_at": "Date",
         "updated_at": "Date"
       },
@@ -29,8 +32,8 @@
       "description": "Blog posts with embedded comments and reactions",
       "schema": {
         "_id": "ObjectId",
-        "title": "String (required)",
-        "content": "String (required)",
+        "title": "String (required, min: 1, max: 200)",
+        "content": "String (required, min: 1)",
         "author_id": "ObjectId (ref: users._id, required)",
         "author_username": "String (required, reduces joins)",
         "tags": ["String"],
@@ -44,7 +47,7 @@
             "_id": "ObjectId",
             "author_id": "ObjectId (ref: users._id)",
             "author_username": "String",
-            "content": "String (required)",
+            "content": "String (required, min: 1)",
             "created_at": "Date",
             "updated_at": "Date"
           }
@@ -62,84 +65,55 @@
       ]
     },
     "sessions": {
-      "description": "User sessions and tokens",
+      "description": "User sessions, tokens, and authentication management",
       "schema": {
         "_id": "ObjectId",
+        "user_id": "ObjectId (ref: users._id, required)",
         "username": "String (required)",
-        "refresh_token": "String",
-        "verification_token": "String",
-        "password_reset_token": "String",
-        "reset_code": "Number",
+        "refresh_token": "String (JWT refresh token)",
+        "verification_token": "String (email verification)",
+        "password_reset_token": "String (password reset)",
+        "reset_code": "Number (OTP for password reset)",
+        "is_active": "Boolean (default: true)",
         "created_at": "Date",
-        "expires_at": "Date"
+        "expires_at": "Date (JWT session expiration)",
+        "verification_expires_at": "Date (email verification expiration)",
+        "reset_expires_at": "Date (password reset expiration)",
+        "last_activity": "Date"
       },
       "indexes": [
+        {"user_id": 1, "unique": true},
         {"username": 1},
         {"refresh_token": 1},
         {"verification_token": 1},
         {"password_reset_token": 1},
-        {"expires_at": 1}
-      ]
-    },
-    "reactions": {
-      "description": "Unified reaction system for likes/dislikes",
-      "schema": {
-        "_id": "ObjectId",
-        "blog_id": "ObjectId (ref: blogs._id, required)",
-        "user_id": "ObjectId (ref: users._id, required)",
-        "reaction_type": "String (enum: 'like', 'dislike', required)",
-        "created_at": "Date",
-        "updated_at": "Date"
-      },
-      "indexes": [
-        {"blog_id": 1, "user_id": 1, "unique": true},
-        {"blog_id": 1, "reaction_type": 1},
-        {"user_id": 1}
-      ]
-    },
-    "password_reset_tokens": {
-      "description": "Password reset token management",
-      "schema": {
-        "_id": "ObjectId",
-        "user_id": "ObjectId (ref: users._id, required)",
-        "token": "String (unique, required)",
-        "expires_at": "Date (required)",
-        "used": "Boolean (default: false)",
-        "created_at": "Date"
-      },
-      "indexes": [
-        {"user_id": 1},
-        {"token": 1, "unique": true},
-        {"expires_at": 1}
-      ]
-    },
-    "tags": {
-      "description": "Blog tags for categorization",
-      "schema": {
-        "_id": "ObjectId",
-        "name": "String (unique, required)",
-        "created_at": "Date"
-      },
-      "indexes": [
-        {"name": 1, "unique": true}
+        {"expires_at": 1},
+        {"verification_expires_at": 1},
+        {"reset_expires_at": 1}
       ]
     }
   },
   "features": {
     "embedded_comments": "Comments are embedded in blog documents for simpler queries",
-    "array_based_reactions": "Likes/dislikes stored as arrays in blog documents",
+    "array_based_reactions": "Likes/dislikes stored as arrays in blog documents for performance",
     "author_username_redundancy": "Author username stored in blog for reduced joins",
-    "unified_reaction_system": "Separate reactions collection for complex reaction handling",
-    "session_management": "Dedicated sessions collection for token management",
-    "password_reset_system": "Dedicated password reset token collection",
-    "tag_system": "Dedicated tags collection for blog categorization",
+    "unified_session_management": "Single sessions collection handles all token types",
     "text_search": "Text indexes on blog title and content for search functionality",
     "popularity_tracking": "View count, like count, and comment count fields",
-    "profile_picture_support": "Embedded profile picture structure with file management"
+    "profile_picture_support": "Embedded profile picture structure with file management",
+    "oauth_integration": "Support for OAuth providers (Google, GitHub)",
+    "role_based_access": "User roles (admin/user) with proper authorization",
+    "email_verification": "Email verification system with token management",
+    "password_reset": "Secure password reset with token-based authentication"
   },
   "sample_data": {
     "users": "Admin user with username 'admin' and email 'admin@example.com'",
     "blogs": "Welcome blog post with sample content and tags",
-    "tags": "8 sample tags: technology, programming, golang, web-development, database, api, tutorial, best-practices"
+    "sessions": "Active user sessions with JWT tokens and verification tokens"
+  },
+  "notes": {
+    "design_decision": "Reactions and comments are embedded in blog documents instead of separate collections for better performance and simpler queries",
+    "session_management": "Single sessions collection handles all types of tokens (JWT, verification, password reset) for centralized session management",
+    "optimization": "Author username is stored redundantly in blog documents to avoid joins during blog listing and display"
   }
 } 
