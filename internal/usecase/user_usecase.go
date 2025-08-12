@@ -226,24 +226,23 @@ func (u *UserUseCase) RefreshToken(refreshToken string) (*domain.LoginResponse, 
 
 func (u *UserUseCase) Logout(userID primitive.ObjectID) error {
 	return u.sessionRepo.DeleteByUserID(userID)
+
 }
 
 func (u *UserUseCase) VerifyEmail(token string) error {
-	// find the session associated with this token
 	session, err := u.sessionRepo.GetByVerificationToken(token)
 	if err != nil {
 		return errors.New("invalid or expired verification token")
 	}
-	// check if the token has expired
+	
 	if time.Now().After(session.VerificationTokenExpiresAt) {
 		return errors.New("invalid or expired verification token")
 	}
 
-	// update/mark user's email as verified in the database
 	if err := u.userRepo.UpdateEmailVerificationStatus(session.UserID, true); err != nil {
 		return err
 	}
-	// clean verif token from session so it cant be reused
+
 	session.VerificationToken = ""
 	return u.sessionRepo.Update(session)
 }
@@ -254,15 +253,11 @@ func (u *UserUseCase) SendVerificationEmail(email string) error {
 		return errors.New("if a user with this email exists, a verification email has been sent")
 	}
 
-	// check if already verified
 	if user.EmailVerified {
 		return errors.New("email is already verified")
 	}
-	// generate secure, short lived verification token
-	verificationToken := u.passwordService.GenerateSecureToken(32)
 
-	//store the token and its expiry in a session document
-	//(we reuse the session logic for simplicity)
+	verificationToken := u.passwordService.GenerateSecureToken(32)
 
 	session := &domain.Session{
 		UserID:                     user.ID,
@@ -271,7 +266,7 @@ func (u *UserUseCase) SendVerificationEmail(email string) error {
 		VerificationTokenExpiresAt: time.Now().Add(24 * time.Hour),
 		IsActive:                   false, // this is not a login session
 	}
-	// we create or update session entry for this user
+	
 	existingSession, _ := u.sessionRepo.GetByUserID(user.ID)
 	if existingSession != nil {
 		existingSession.VerificationToken = session.VerificationToken
@@ -285,7 +280,6 @@ func (u *UserUseCase) SendVerificationEmail(email string) error {
 		}
 	}
 
-	// send the email in Background
 	go u.emailService.SendVerificationEmail(user.Email, user.Username, verificationToken)
 	return nil
 }
@@ -320,12 +314,10 @@ func (u *UserUseCase) SendPasswordResetEmail(email string) error {
 }
 
 func (u *UserUseCase) ResetPassword(token, newPassword string) error {
-	// validate the new pasword's strength
 	if err := u.passwordService.ValidatePassword(newPassword); err != nil {
 		return err
 	}
 
-	// find the session associated with the reset token
 	session, err := u.sessionRepo.GetByResetToken(token)
 	if err != nil {
 		return errors.New("invalid or expired passoword reset token")
@@ -333,7 +325,7 @@ func (u *UserUseCase) ResetPassword(token, newPassword string) error {
 	if time.Now().After(session.ResetTokenExpiresAt) {
 		return errors.New("invalid or expired password reset token")
 	}
-	// hash the new password
+
 	hashedPassword, err := u.passwordService.HashPassword(newPassword)
 	if err != nil {
 		return err
@@ -344,8 +336,6 @@ func (u *UserUseCase) ResetPassword(token, newPassword string) error {
 	session.PasswordResetToken = ""
 	return u.sessionRepo.Update(session)
 }
-
-//Updated the updaterole and added the upload profile picture functions
 
 func (u *UserUseCase) UpdateRole(adminUserID, targetUserID primitive.ObjectID, role string) error {
 	adminUser, err := u.userRepo.GetByID(adminUserID)
@@ -372,6 +362,6 @@ func (u *UserUseCase) UploadProfilePicture(userID primitive.ObjectID, file multi
 		return nil, fmt.Errorf("failed to update user profile in database: %w", err)
 	}
 
-	// 3. Return the fully updated user object.
 	return u.userRepo.GetByID(userID)
 }
+
