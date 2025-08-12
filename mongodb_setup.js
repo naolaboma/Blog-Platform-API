@@ -43,7 +43,7 @@ print("Inserting sample data...");
 db.users.insertOne({
     username: "admin",
     email: "admin@example.com",
-    password: "$2a$10$hashedpassword",
+    password: "$2a$10$GCVKOmay2jG0Gi/zDJ2phOCLRxuba4aSkLwZzdjjBEn9eSKfX2fpy",
     role: "admin",
     email_verified: false,
     profile_picture: {
