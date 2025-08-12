@@ -17,6 +17,8 @@ type UserUseCase struct {
 	sessionRepo     domain.SessionRepository
 	emailService    domain.EmailService
 	fileService     domain.FileService
+	workerPool      domain.WorkerPool
+	oauthService    domain.OAuthService
 }
 
 func NewUserUseCase(
@@ -26,6 +28,8 @@ func NewUserUseCase(
 	sessionRepo domain.SessionRepository,
 	emailService domain.EmailService,
 	fileService domain.FileService,
+	workerPool domain.WorkerPool,
+	oauthService domain.OAuthService,
 ) domain.UserUseCase {
 	return &UserUseCase{
 		userRepo:        userRepo,
@@ -34,6 +38,8 @@ func NewUserUseCase(
 		sessionRepo:     sessionRepo,
 		emailService:    emailService,
 		fileService:     fileService,
+		workerPool:      workerPool,
+		oauthService:    oauthService,
 	}
 }
 
@@ -279,8 +285,16 @@ func (u *UserUseCase) SendVerificationEmail(email string) error {
 			return err
 		}
 	}
-
+	// send the email in Background
+	u.workerPool.Submit(&EmailJob{
+		EmailService: u.emailService,
+		Type:         "verification",
+		Email:        user.Email,
+		Username:     user.Username,
+		Token:        verificationToken,
+	})
 	go u.emailService.SendVerificationEmail(user.Email, user.Username, verificationToken)
+
 	return nil
 }
 
@@ -309,7 +323,14 @@ func (u *UserUseCase) SendPasswordResetEmail(email string) error {
 		}
 	}
 
-	go u.emailService.SendPasswordResetEmail(user.Email, user.Username, resetToken)
+	//go u.emailService.SendPasswordResetEmail(user.Email, user.Username, resetToken)
+	u.workerPool.Submit(&EmailJob{
+		EmailService: u.emailService,
+		Type:         "password_reset",
+		Email:        user.Email,
+		Username:     user.Username,
+		Token:        resetToken,
+	})
 	return nil
 }
 
@@ -365,3 +386,80 @@ func (u *UserUseCase) UploadProfilePicture(userID primitive.ObjectID, file multi
 	return u.userRepo.GetByID(userID)
 }
 
+// core logic for  OAuth login/registration
+
+func (u *UserUseCase) OAuthLogin(provider, state, code, storedState string) (*domain.LoginResponse, error) {
+	// csrf protection
+	if state != storedState {
+		return nil, errors.New("invalid oauth state")
+	}
+	// exchange code for a token from the provider
+	token, err := u.oauthService.ExchangeCodeForToken(provider, code)
+	if err != nil {
+		return nil, fmt.Errorf("failed to exchange code: %w", err)
+	}
+	// get user info from the provider
+	oauthID, email, username, err := u.oauthService.GetUserInfo(provider, token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user info: %w", err)
+	}
+	// check if a user with this oauth id already exists
+	user, err := u.userRepo.GetByOAuth(provider, oauthID)
+	if err != nil && err.Error() != "user not found" {
+		return nil, err
+	}
+	// if user does not exist, it's a new registration
+	if user == nil {
+		existingUser, _ := u.userRepo.GetByEmail(email)
+		if existingUser != nil {
+			return nil, errors.New("user with this email already exists, please log in with your password")
+		}
+		// create new user
+		newUser := &domain.User{
+			Username:      username,
+			Email:         email,
+			EmailVerified: true,
+			OAuthProvider: provider,
+			OAuthID:       oauthID,
+			Role:          domain.RoleUser,
+		}
+		if err := u.userRepo.Create(newUser); err != nil {
+			return nil, err
+		}
+		user = newUser
+	}
+
+	//issue our application's own JWTs
+	accessToken, err := u.jwtService.GenerateAccessToken(user.ID, user.Email, user.Role)
+	if err != nil {
+		return nil, err
+	}
+	refreshToken, err := u.jwtService.GenerateRefreshToken(user.ID, user.Email, user.Role)
+	if err != nil {
+		return nil, err
+	}
+	// session creation or updation for refresh token
+	session, _ := u.sessionRepo.GetByUserID(user.ID)
+	if session == nil {
+		session = &domain.Session{UserID: user.ID}
+	}
+	session.Username = user.Username
+	session.Token = refreshToken
+	session.IsActive = true
+	session.CreatedAt = time.Now()
+	session.ExpiresAt = time.Now().Add(time.Hour * 24 * 7)
+
+	//upsert logic for session
+	if _, err := u.sessionRepo.GetByUserID(user.ID); err != nil {
+		u.sessionRepo.Create(session)
+	} else {
+		u.sessionRepo.Update(session)
+	}
+
+	return &domain.LoginResponse{
+		User:         user,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
+
+}

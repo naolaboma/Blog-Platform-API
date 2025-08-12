@@ -2,7 +2,11 @@ package usecase
 
 import (
 	"Blog-API/internal/domain"
+	"context"
 	"errors"
+	"fmt"
+	"log"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -11,11 +15,19 @@ import (
 type blogUseCase struct {
 	blogRepo domain.BlogRepository
 	userRepo domain.UserRepository
+	cache    domain.Cache
 }
 
 func NewBlogUseCase(
-	blogRepo domain.BlogRepository, userRepo domain.UserRepository) domain.BlogUseCase {
-	return &blogUseCase{blogRepo: blogRepo, userRepo: userRepo}
+	blogRepo domain.BlogRepository,
+	userRepo domain.UserRepository,
+	cache domain.Cache,
+) domain.BlogUseCase {
+	return &blogUseCase{
+		blogRepo: blogRepo,
+		userRepo: userRepo,
+		cache:    cache,
+	}
 }
 
 func (uc *blogUseCase) CreateBlog(blog *domain.Blog, authorID primitive.ObjectID) error {
@@ -29,7 +41,6 @@ func (uc *blogUseCase) CreateBlog(blog *domain.Blog, authorID primitive.ObjectID
 	blog.AuthorUsername = author.Username
 	blog.CreatedAt = time.Now()
 	blog.UpdatedAt = time.Now()
-	// initialize slices and countr to ensure they are not nil
 	blog.Comments = []domain.Comment{}
 	blog.Likes = []string{}
 	blog.Dislikes = []string{}
@@ -37,21 +48,57 @@ func (uc *blogUseCase) CreateBlog(blog *domain.Blog, authorID primitive.ObjectID
 	blog.LikeCount = 0
 	blog.CommentCount = 0
 
-	return uc.blogRepo.Create(blog)
+	if err := uc.blogRepo.Create(blog); err != nil {
+		return err
+	}
+
+	//invalidate caches that list multiple blogs
+	go uc.invalidateBlogListCaches()
+
+	return nil
 }
 
 func (uc *blogUseCase) GetBlog(id primitive.ObjectID) (*domain.Blog, error) {
+	ctx := context.Background()
+	key := fmt.Sprintf("blog:%s", id.Hex())
+	var blog domain.Blog
 
-	blog, err := uc.blogRepo.GetByID(id)
+	if err := uc.cache.Get(ctx, key, &blog); err == nil {
+		log.Println("CACHE HIT: GetBlog")
+		go uc.blogRepo.IncrementViewCount(id)
+		return &blog, nil
+	}
+	log.Println("CACHE MISS: GetBlog")
+	dbBlog, err := uc.blogRepo.GetByID(id)
 	if err != nil {
 		return nil, errors.New("blog not found")
 	}
-	go uc.blogRepo.IncrementViewCount(id)
-	return blog, nil
+	go uc.cache.Set(ctx, key, dbBlog, 10*time.Minute)
+	return dbBlog, nil
 }
 
 func (uc *blogUseCase) GetAllBlogs(page, limit int, sort string) ([]*domain.Blog, int64, error) {
-	return uc.blogRepo.GetAll(page, limit, sort)
+	ctx := context.Background()
+	key := fmt.Sprintf("blogs:all:page=%d:limit=%d:sort=%s", page, limit, sort)
+	var cachedResult struct {
+		Blogs []*domain.Blog
+		Total int64
+	}
+	if err := uc.cache.Get(ctx, key, &cachedResult); err == nil {
+		log.Println("CACHE HIT: GetAllBlogs")
+		return cachedResult.Blogs, cachedResult.Total, nil
+	}
+	log.Println("CACHE MISS: GetAllBlogs")
+	blogs, total, err := uc.blogRepo.GetAll(page, limit, sort)
+	if err != nil {
+		return nil, 0, err
+	}
+	go uc.cache.Set(ctx, key, struct {
+		Blogs []*domain.Blog
+		Total int64
+	}{
+		blogs, total}, 5*time.Minute)
+	return blogs, total, nil
 }
 
 func (uc *blogUseCase) UpdateBlog(id primitive.ObjectID, blogUpdate *domain.Blog, userID primitive.ObjectID, userRole string) (*domain.Blog, error) {
@@ -69,9 +116,11 @@ func (uc *blogUseCase) UpdateBlog(id primitive.ObjectID, blogUpdate *domain.Blog
 	originalBlog.UpdatedAt = time.Now()
 
 	if err := uc.blogRepo.Update(originalBlog); err != nil {
-		// If the database fails to save, return the error.
 		return nil, err
 	}
+	//invalidate cache for this specific blog and for all ListenAndServe
+	go uc.cache.Delete(context.Background(), fmt.Sprintf("blog:%s", id.Hex()))
+	go uc.invalidateBlogListCaches()
 
 	return originalBlog, nil
 }
@@ -84,7 +133,12 @@ func (uc *blogUseCase) DeleteBlog(id primitive.ObjectID, userID primitive.Object
 	if blog.AuthorID != userID && userRole != domain.RoleAdmin {
 		return errors.New("forbidden: you are not authorized to delete this post")
 	}
-	return uc.blogRepo.Delete(id)
+	if err := uc.blogRepo.Delete(id); err != nil {
+		return err
+	}
+	go uc.cache.Delete(context.Background(), fmt.Sprintf("blog:%s", id.Hex()))
+	go uc.invalidateBlogListCaches()
+	return nil
 }
 
 func (uc *blogUseCase) AddComment(blogID primitive.ObjectID, comment *domain.Comment) error {
@@ -96,7 +150,12 @@ func (uc *blogUseCase) AddComment(blogID primitive.ObjectID, comment *domain.Com
 	comment.AuthorUsername = author.Username
 	comment.CreatedAt = time.Now()
 	comment.UpdatedAt = time.Now()
-	return uc.blogRepo.AddComment(blogID, comment)
+	if err := uc.blogRepo.AddComment(blogID, comment); err != nil {
+		return err
+	}
+
+	go uc.cache.Delete(context.Background(), fmt.Sprintf("blog:%s", blogID.Hex()))
+	return nil
 }
 
 func (uc *blogUseCase) LikeBlog(blogID primitive.ObjectID, userID string) error {
@@ -140,15 +199,74 @@ func (uc *blogUseCase) DislikeBlog(blogID primitive.ObjectID, userID string) err
 }
 
 func (uc *blogUseCase) SearchBlogsByTitle(title string, page, limit int) ([]*domain.Blog, int64, error) {
-	return uc.blogRepo.SearchByTitle(title, page, limit)
+
+	ctx := context.Background()
+	key := fmt.Sprintf("blogs:search:title=%s:page=%d:limit=%d", title, page, limit)
+	var cachedResult struct {
+		Blogs []*domain.Blog
+		Total int64
+	}
+	if err := uc.cache.Get(ctx, key, &cachedResult); err == nil {
+		log.Println("CACHE HIT: SearchBlogsByTitle")
+		return cachedResult.Blogs, cachedResult.Total, nil
+	}
+	log.Println("CACHE MISS: SearchBlogsByTitle")
+	blogs, total, err := uc.blogRepo.SearchByTitle(title, page, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	go uc.cache.Set(ctx, key, struct {
+		Blogs []*domain.Blog
+		Total int64
+	}{
+		blogs, total}, 5*time.Minute)
+	return blogs, total, nil
 }
 
 func (uc *blogUseCase) SearchBlogsByAuthor(author string, page, limit int) ([]*domain.Blog, int64, error) {
-	return uc.blogRepo.SearchByAuthor(author, page, limit)
+	ctx := context.Background()
+	key := fmt.Sprintf("blogs:search:author=%s:page=%d:limit=%d", author, page, limit)
+	var cachedResult struct {
+		Blogs []*domain.Blog
+		Total int64
+	}
+	if err := uc.cache.Get(ctx, key, &cachedResult); err == nil {
+		log.Printf("CACHE HIT: SearchBlogsByAuthor")
+		return cachedResult.Blogs, cachedResult.Total, nil
+	}
+	log.Println("CACHE MISS: SearchBlogsByAuthor")
+	blogs, total, err := uc.blogRepo.SearchByAuthor(author, page, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	go uc.cache.Set(ctx, key, struct {
+		Blogs []*domain.Blog
+		Total int64
+	}{blogs, total}, 5*time.Minute)
+	return blogs, total, nil
 }
 
 func (uc *blogUseCase) FilterBlogsByTags(tags []string, page, limit int) ([]*domain.Blog, int64, error) {
-	return uc.blogRepo.FilterByTags(tags, page, limit)
+	ctx := context.Background()
+	key := fmt.Sprintf("blogs:filter:tags=%s:page=%d:limit=%d", strings.Join(tags, ","), page, limit)
+	var cachedResult struct {
+		Blogs []*domain.Blog
+		Total int64
+	}
+	if err := uc.cache.Get(ctx, key, &cachedResult); err == nil {
+		log.Println("CACHE HIT: FilterBlogsByTags")
+		return cachedResult.Blogs, cachedResult.Total, nil
+	}
+	log.Println("CACHE MISS: FilterBlogsByTags")
+	blogs, total, err := uc.blogRepo.FilterByTags(tags, page, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	go uc.cache.Set(ctx, key, struct {
+		Blogs []*domain.Blog
+		Total int64
+	}{blogs, total}, 5*time.Minute)
+	return blogs, total, nil
 }
 
 func (uc *blogUseCase) FilterBlogsByDate(startDate, endDate time.Time, page, limit int) ([]*domain.Blog, int64, error) {
@@ -156,7 +274,20 @@ func (uc *blogUseCase) FilterBlogsByDate(startDate, endDate time.Time, page, lim
 }
 
 func (uc *blogUseCase) GetPopularBlogs(limit int) ([]*domain.Blog, error) {
-	return uc.blogRepo.GetPopular(limit)
+	ctx := context.Background()
+	key := fmt.Sprintf("blogs:popular:limit=%d", limit)
+	var blogs []*domain.Blog
+	if err := uc.cache.Get(ctx, key, &blogs); err == nil {
+		log.Println("CACHE HIT: GetPopularBlogs")
+		return blogs, nil
+	}
+	log.Println("CACHE MISS: GetPopularBlogs")
+	dbBlogs, err := uc.blogRepo.GetPopular(limit)
+	if err != nil {
+		return nil, err
+	}
+	go uc.cache.Set(ctx, key, dbBlogs, 15*time.Minute)
+	return dbBlogs, nil
 }
 
 func (uc *blogUseCase) DeleteComment(blogID, commentID primitive.ObjectID, userID primitive.ObjectID) error {
@@ -190,7 +321,11 @@ func (uc *blogUseCase) DeleteComment(blogID, commentID primitive.ObjectID, userI
 		return errors.New("forbideen: you are not authorized to delete this comment")
 	}
 
-	return uc.blogRepo.DeleteComment(blogID, commentID)
+	if err := uc.blogRepo.DeleteComment(blogID, commentID); err != nil {
+		return err
+	}
+	go uc.cache.Delete(context.Background(), fmt.Sprintf("blog:%s", blogID.Hex()))
+	return nil
 }
 
 func (uc *blogUseCase) UpdateComment(blogID, commentID primitive.ObjectID, content string, userID primitive.ObjectID) error {
@@ -214,10 +349,22 @@ func (uc *blogUseCase) UpdateComment(blogID, commentID primitive.ObjectID, conte
 	if commentAuthorID != userID {
 		return errors.New("forbidden: you are not the author of this comment")
 	}
-	return uc.blogRepo.UpdateComment(blogID, commentID, content)
+	if err := uc.blogRepo.UpdateComment(blogID, commentID, content); err != nil {
+		return err
+	}
+	go uc.cache.Delete(context.Background(), fmt.Sprintf("blog:%s", blogID.Hex()))
+	return nil
 }
 
-// helper function
+// helper functions
+func (uc *blogUseCase) invalidateBlogListCaches() {
+	ctx := context.Background()
+	uc.cache.DeleteByPattern(ctx, "blogs:all:*")
+	uc.cache.DeleteByPattern(ctx, "blogs:search:*")
+	uc.cache.DeleteByPattern(ctx, "blogs:filter:*")
+	uc.cache.DeleteByPattern(ctx, "blogs:popular:*")
+	log.Println("CACHE INVALIDATION: Cleared blog list caches")
+}
 func containsString(slice []string, item string) bool {
 	for _, s := range slice {
 		if s == item {

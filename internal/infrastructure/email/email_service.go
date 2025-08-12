@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/smtp"
-	"os"
+	"path/filepath"
 )
 
 type EmailService struct {
@@ -56,7 +56,7 @@ func (e *EmailService) SendVerificationEmail(to, username, token string) error {
 	data := EmailData{
 		Username: username,
 		Token:    token,
-		Link:     fmt.Sprintf("%s/api/verify-email?token=%s", e.baseURL, token),
+		Link:     fmt.Sprintf("%s/api/v1/auth/verify-email?token=%s", e.baseURL, token),
 		Subject:  "Verify Your Email Address",
 		To:       to,
 	}
@@ -77,30 +77,29 @@ func (e *EmailService) SendPasswordResetEmail(to, username, token string) error 
 }
 
 func (e *EmailService) sendEmail(templateName string, data EmailData) error {
-	// Load and parse template
-	currdir, errdir := os.Getwd()
-	if errdir != nil {
-		return errdir
-	}
-	tmplt, errLoadingTmplt := template.ParseFiles(currdir + "/internal/infrastructure/email/templates/" + templateName)
-	if errLoadingTmplt != nil {
-		return fmt.Errorf("error loading the template: %v", errLoadingTmplt)
+	// Load and parse base + content templates
+	tmplt, err := template.ParseFiles(
+		filepath.Join(e.templateDir, "base.html"),
+		filepath.Join(e.templateDir, templateName),
+	)
+	if err != nil {
+		return fmt.Errorf("error loading templates: %v", err)
 	}
 
-	// Execute template
+	// Execute base template which includes the named "content" block
 	var bodyWritten bytes.Buffer
-	if errBuffer := tmplt.Execute(&bodyWritten, data); errBuffer != nil {
-		return fmt.Errorf("error executing template: %w", errBuffer)
+	if err := tmplt.ExecuteTemplate(&bodyWritten, "base.html", data); err != nil {
+		return fmt.Errorf("error executing template: %w", err)
 	}
 
 	// Create email
-	from := os.Getenv("SMTP_EMAIL")
+	from := e.from
 	msg := fmt.Sprintf("From: %s\nTo: %s\nSubject: %s\nMIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n%s", from, data.To, data.Subject, bodyWritten.String())
 
-	// Send email
-	errSmtp := smtp.SendMail("smtp.gmail.com:587", e.auth, from, []string{data.To}, []byte(msg))
-	if errSmtp != nil {
-		return fmt.Errorf("error sending email: %w", errSmtp)
+	// Send email using configured host:port
+	addr := fmt.Sprintf("%s:%d", e.host, e.port)
+	if err := smtp.SendMail(addr, e.auth, from, []string{data.To}, []byte(msg)); err != nil {
+		return fmt.Errorf("error sending email: %w", err)
 	}
 	return nil
 }

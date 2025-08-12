@@ -18,6 +18,8 @@ type User struct {
 	Bio            string             `bson:"bio,omitempty" json:"bio,omitempty"`
 	CreatedAt      time.Time          `bson:"created_at" json:"created_at"`
 	UpdatedAt      time.Time          `bson:"updated_at" json:"updated_at"`
+	OAuthProvider  string             `bson:"oauth_provider,omitempty" json:"oauth_provider,omitempty"`
+	OAuthID        string             `bson:"oauth_id,omitempty" json:"oauth_id,omitempty"`
 }
 
 // Constants for user roles to avoid magic strings.
@@ -46,6 +48,8 @@ type UserRepository interface {
 	UpdateProfilePicture(id primitive.ObjectID, photo *Photo) error
 	VerifyEmail(id primitive.ObjectID) error
 	UpdateEmailVerificationStatus(id primitive.ObjectID, verified bool) error
+
+	GetByOAuth(provider, oauthID string) (*User, error)
 }
 
 type UserUseCase interface {
@@ -65,6 +69,8 @@ type UserUseCase interface {
 	UpdateProfile(id primitive.ObjectID, req *UpdateProfileRequest) (*User, error)
 	UpdateRole(adminUserID, targetUserID primitive.ObjectID, role string) error
 	UploadProfilePicture(userID primitive.ObjectID, file multipart.File, handler *multipart.FileHeader) (*User, error)
+
+	OAuthLogin(provider, state, code, storedState string) (*LoginResponse, error)
 }
 
 type RegisterRequest struct {

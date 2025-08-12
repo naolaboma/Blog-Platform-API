@@ -1,7 +1,7 @@
 package filesystem
 
 import (
-	"Blog-API/internal/domain" // <-- IMPORTANT: It now depends on the domain
+	"Blog-API/internal/domain"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -12,12 +12,10 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// fileService is the concrete implementation (note the lowercase 'f').
 type fileService struct {
 	uploadPath string
 }
 
-// NewFileService is the constructor. It now returns the INTERFACE type.
 func NewFileService(uploadPath string) domain.FileService {
 	if err := os.MkdirAll(uploadPath, os.ModePerm); err != nil {
 		// Log a fatal error because the app can't run without this directory.
@@ -28,7 +26,7 @@ func NewFileService(uploadPath string) domain.FileService {
 	}
 }
 
-// SaveProfilePicture now correctly implements the interface method.
+// SaveProfilePicture implement the interface method.
 func (s *fileService) SaveProfilePicture(userID primitive.ObjectID, file multipart.File, handler *multipart.FileHeader) (*domain.Photo, error) {
 	ext := filepath.Ext(handler.Filename)
 	newFileName := fmt.Sprintf("%s-%d%s", userID.Hex(), time.Now().Unix(), ext)

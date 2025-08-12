@@ -7,7 +7,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter(userHandler *controllers.UserHandler, blogHandler *controllers.BlogHandler, aiHandler *controllers.AIHandler, authMiddleware *middleware.AuthMiddleware) *gin.Engine {
+func SetupRouter(userHandler *controllers.UserHandler,
+	blogHandler *controllers.BlogHandler,
+	aiHandler *controllers.AIHandler,
+	oauthHandler *controllers.OAuthHandler,
+	authMiddleware *middleware.AuthMiddleware,
+) *gin.Engine {
 	router := gin.Default()
 
 	// API v1 routes
@@ -24,6 +29,9 @@ func SetupRouter(userHandler *controllers.UserHandler, blogHandler *controllers.
 			auth.GET("/verify-email", userHandler.VerifyEmail)
 			auth.POST("/forgot-password", userHandler.SendPasswordResetEmail)
 			auth.POST("/reset-password", userHandler.ResetPassword)
+			//Oauth routes
+			auth.GET("/:provider/login", oauthHandler.OAuthLogin)
+			auth.GET("/:provider/callback", oauthHandler.OAuthCallback)
 		}
 		// protected auth routes
 		authProtected := v1.Group("/auth")

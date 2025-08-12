@@ -232,7 +232,7 @@ func (br *BlogRepo) FilterByDate(startDate, endDate time.Time, page, limit int) 
 
 	filter := bson.M{
 		"created_at": bson.M{
-			"$gre": startDate,
+			"$gte": startDate,
 			"$lte": endDate,
 		},
 	}
@@ -381,5 +381,5 @@ func (br *BlogRepo) RemoveDislike(blogID primitive.ObjectID, userID string) erro
 }
 
 func (br *BlogRepo) GetTagIDByName(name string) (primitive.ObjectID, error) {
-	return primitive.NilObjectID, nil
+	return primitive.NilObjectID, errors.New("not implemented")
 }
