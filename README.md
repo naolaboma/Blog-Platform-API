@@ -21,6 +21,7 @@ A robust, scalable RESTful API for a blog platform built with Go, featuring user
 ## Features
 
 ### Core Functionality
+
 - **User Management**: Registration, authentication, profile management, and role-based access control
 - **Blog Management**: Create, read, update, and delete blog posts with embedded comments and reactions
 - **Search & Filtering**: Advanced search by title, author, tags, and date with pagination support
@@ -31,6 +32,7 @@ A robust, scalable RESTful API for a blog platform built with Go, featuring user
 - **File Upload**: Profile picture upload with validation and storage
 
 ### Technical Features
+
 - **High Performance**: Redis caching, database indexing, and optimized queries
 - **Scalability**: Worker pools, goroutines, and connection pooling
 - **Security**: Password hashing, input validation, and role-based authorization
@@ -62,17 +64,20 @@ Before running this application, ensure you have the following installed:
 ## Installation
 
 1. Clone the repository:
+
 ```bash
 git clone <repository-url>
 cd Blog-API
 ```
 
 2. Install Go dependencies:
+
 ```bash
 go mod download
 ```
 
 3. Create environment configuration file:
+
 ```bash
 cp .env.example .env
 ```
@@ -86,12 +91,14 @@ Create a `.env` file in the root directory as the example env
 ### Option 1: Using the Setup Script
 
 1. Ensure MongoDB is running:
+
 ```bash
 sudo systemctl start mongod
 sudo systemctl enable mongod
 ```
 
 2. Run the setup script:
+
 ```bash
 mongosh < mongodb_setup.js
 ```
@@ -99,12 +106,14 @@ mongosh < mongodb_setup.js
 ## Running the Application
 
 1. Start Redis server:
+
 ```bash
 sudo systemctl start redis-server
 sudo systemctl enable redis-server
 ```
 
 2. Run the application:
+
 ```bash
 go run cmd/server/main.go
 ```
@@ -114,6 +123,7 @@ The server will start on `http://localhost:8080` by default.
 ## API Documentation
 
 ### Base URL
+
 ```
 http://localhost:8080/api/v1
 ```
@@ -121,6 +131,7 @@ http://localhost:8080/api/v1
 ### Authentication Endpoints
 
 #### User Registration
+
 ```http
 POST /auth/register
 Content-Type: application/json
@@ -133,6 +144,7 @@ Content-Type: application/json
 ```
 
 #### User Login
+
 ```http
 POST /auth/login
 Content-Type: application/json
@@ -144,6 +156,7 @@ Content-Type: application/json
 ```
 
 #### Refresh Token
+
 ```http
 POST /auth/refresh
 Content-Type: application/json
@@ -154,12 +167,14 @@ Content-Type: application/json
 ```
 
 #### Logout
+
 ```http
 POST /auth/logout
 Authorization: Bearer <access-token>
 ```
 
 #### Email Verification
+
 ```http
 POST /auth/send-verification
 Content-Type: application/json
@@ -170,6 +185,7 @@ Content-Type: application/json
 ```
 
 #### Password Reset
+
 ```http
 POST /auth/forgot-password
 Content-Type: application/json
@@ -182,16 +198,19 @@ Content-Type: application/json
 ### Blog Endpoints
 
 #### Get All Blogs
+
 ```http
 GET /blogs?page=1&limit=10&sort=newest
 ```
 
 #### Get Blog by ID
+
 ```http
 GET /blogs/{blog-id}
 ```
 
 #### Create Blog (Authenticated)
+
 ```http
 POST /blogs
 Authorization: Bearer <access-token>
@@ -205,6 +224,7 @@ Content-Type: application/json
 ```
 
 #### Update Blog (Author/Admin Only)
+
 ```http
 PUT /blogs/{blog-id}
 Authorization: Bearer <access-token>
@@ -217,27 +237,32 @@ Content-Type: application/json
 ```
 
 #### Delete Blog (Author/Admin Only)
+
 ```http
 DELETE /blogs/{blog-id}
 Authorization: Bearer <access-token>
 ```
 
 #### Search Blogs by Title
+
 ```http
 GET /blogs/search/title?title=search-term&page=1&limit=10
 ```
 
 #### Search Blogs by Author
+
 ```http
 GET /blogs/search/author?author=username&page=1&limit=10
 ```
 
 #### Filter Blogs by Tags
+
 ```http
 GET /blogs/filter/tags?tags=technology,programming&page=1&limit=10
 ```
 
 #### Get Popular Blogs
+
 ```http
 GET /blogs/popular?limit=10
 ```
@@ -245,12 +270,14 @@ GET /blogs/popular?limit=10
 ### User Management Endpoints
 
 #### Get User Profile (Authenticated)
+
 ```http
 GET /users/profile
 Authorization: Bearer <access-token>
 ```
 
 #### Update User Profile (Authenticated)
+
 ```http
 PUT /users/profile
 Authorization: Bearer <access-token>
@@ -263,6 +290,7 @@ Content-Type: application/json
 ```
 
 #### Upload Profile Picture (Authenticated)
+
 ```http
 POST /users/profile/picture
 Authorization: Bearer <access-token>
@@ -274,6 +302,7 @@ profile_picture: <file>
 ### AI Integration Endpoints
 
 #### Generate Blog Content (Authenticated)
+
 ```http
 POST /ai/generate-blog
 Authorization: Bearer <access-token>
@@ -285,6 +314,7 @@ Content-Type: application/json
 ```
 
 #### Enhance Blog Content (Authenticated)
+
 ```http
 POST /ai/enhance-blog
 Authorization: Bearer <access-token>
@@ -296,6 +326,7 @@ Content-Type: application/json
 ```
 
 #### Suggest Blog Ideas (Authenticated)
+
 ```http
 POST /ai/suggest-ideas
 Authorization: Bearer <access-token>
@@ -309,6 +340,7 @@ Content-Type: application/json
 ### Admin Endpoints
 
 #### Promote User to Admin
+
 ```http
 PUT /admin/users/{user-id}/promote
 Authorization: Bearer <admin-access-token>
@@ -320,6 +352,7 @@ Content-Type: application/json
 ```
 
 #### Demote Admin to User
+
 ```http
 PUT /admin/users/{user-id}/demote
 Authorization: Bearer <admin-access-token>
@@ -367,9 +400,11 @@ Blog-API/
 ## Testing
 
 ### Manual Testing
+
 Use the provided Postman collection in `docs/postman/Blog-API.postman_collection.json` to test all endpoints.
 
 ### Automated Testing
+
 ```bash
 # Run all tests
 go test ./...
@@ -399,4 +434,4 @@ go test ./internal/usecase
 - Update documentation for API changes
 - Ensure all tests pass before submitting PR
 - Use meaningful commit messages
-
+- Follow pure clean architecture approach
