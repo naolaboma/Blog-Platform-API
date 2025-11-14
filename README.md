@@ -423,7 +423,7 @@ go test ./internal/usecase
 1. **Environment Variables**: Ensure all sensitive configuration is properly set
 2. **Database**: Use production MongoDB instance with proper authentication
 3. **Redis**: Configure Redis with authentication and persistence
-4. **HTTPS**: Enable TLS/SSL for production endpoints
+4. **HTTPS**: Enable TLS/SSL for production endpoints 
 5. **Monitoring**: Implement logging, metrics, and health checks
 6. **Scaling**: Consider horizontal scaling with load balancers
 
